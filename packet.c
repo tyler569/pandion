@@ -1,71 +1,7 @@
 #include "minecraft.h"
-#include <assert.h>
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-pn_error_t read_inbound_packet(struct connection *c) {
-	long len = read_varint_from_stream(c->socket);
-
-	if (feof(c->socket) || ferror(c->socket))
-		return pn_eof;
-
-	if (len == 0)
-		return pn_invalid_packet;
-
-	if (len > 0) {
-		c->inbound_packet.len = len;
-		void *data = realloc(c->inbound_packet.data, len);
-
-		if (!data)
-			return pn_oom;
-
-		c->inbound_packet.data = data;
-
-		fread(c->inbound_packet.data, 1, len, c->socket);
-		if (feof(c->socket) || ferror(c->socket))
-			return pn_eof;
-
-		c->inbound_packet.stream = fmemopen(c->inbound_packet.data, len, "r");
-	}
-
-	return pn_ok;
-}
-
-void end_inbound_packet(struct connection *c) {
-	fclose(c->inbound_packet.stream);
-}
-
-void new_outbound_packet(struct connection *c, long id) {
-	assert(c->outbound_packet.data == nullptr);
-
-	c->outbound_packet.len = 0;
-	c->outbound_packet.stream = open_memstream(
-		(char **)&c->outbound_packet.data, &c->outbound_packet.len);
-
-	write_varint_to_stream(c->outbound_packet.stream, (long)id);
-}
-
-pn_error_t send_outbound_packet(struct connection *c) {
-	fclose(c->outbound_packet.stream);
-
-	assert(c->outbound_packet.data != nullptr);
-	assert(c->outbound_packet.len > 0);
-	assert(!feof(c->outbound_packet.stream));
-	assert(!ferror(c->outbound_packet.stream));
-
-	write_varint_to_stream(c->socket, (long)c->outbound_packet.len);
-	fwrite(c->outbound_packet.data, 1, c->outbound_packet.len, c->socket);
-
-	if (feof(c->socket) || ferror(c->socket))
-		return pn_eof;
-
-	free(c->outbound_packet.data);
-	c->outbound_packet.data = nullptr;
-
-	return pn_ok;
-}
 
 struct t_string read_string(struct connection *c) {
 	struct t_string string;

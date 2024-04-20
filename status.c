@@ -2,16 +2,46 @@
 #include <stdio.h>
 
 // protocol 758
-enum handshake_packet_id {
+enum status_inbound_packet_id {
 	status_response = 0,
 	pong = 1,
 };
 
-const char *handshake_json
+enum status_outbound_packet_id {
+	status_request = 0,
+	ping = 1,
+};
+
+pn_error_t reply_to_status_request(struct connection *c);
+pn_error_t reply_to_status_ping(struct connection *c);
+
+const char *status_json
 	= "{\"version\":{\"name\":\"1.18.2\",\"protocol\":758},\"players\":{"
 	  "\"max\":100,\"online\":0},\"description\":{\"text\":\"Hello, world!\"}}";
 
+pn_error_t handle_status_state(struct connection *c) {
+	long packet_type = read_varint(c);
+
+	printf("status packet type=%ld\n", packet_type);
+
+	switch (packet_type) {
+	case status_request:
+		return reply_to_status_request(c);
+	case ping:
+		return reply_to_status_ping(c);
+	default:
+		printf("invalid status packet type\n");
+		return pn_invalid_packet;
+	}
+}
+
 pn_error_t handle_handshake(struct connection *c) {
+	long packet_id = read_varint(c);
+	if (packet_id != 0) {
+		printf("invalid handshake packet id\n");
+		return pn_invalid_packet;
+	}
+
 	long version = read_varint(c);
 	struct t_string address = read_string(c);
 	short port = read_short(c);
@@ -44,7 +74,7 @@ pn_error_t reply_to_status_request(struct connection *c) {
 
 	new_outbound_packet(c, status_response);
 
-	write_c_string(c, handshake_json);
+	write_c_string(c, status_json);
 
 	rc = send_outbound_packet(c);
 	if (rc != pn_ok)

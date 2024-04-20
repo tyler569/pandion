@@ -7,5 +7,7 @@ add_executable(minecraft main.c
         varint.c
         packet.c
         minecraft.h
-        handshake.c
-        hexdump.c)
+        status.c
+        hexdump.c
+        connection.c
+        login.c)

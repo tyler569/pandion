@@ -5,13 +5,6 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 
-#define N_STATUS_HANDLERS 2
-
-pn_error_t (*status_handlers[N_STATUS_HANDLERS])(struct connection *) = {
-	[0] = reply_to_status_request,
-	[1] = reply_to_status_ping,
-};
-
 int main() {
 	int rc;
 
@@ -39,59 +32,10 @@ int main() {
 	while (true) {
 		int clientfd
 			= accept(sockfd, (struct sockaddr *)&source_addr, &source_len);
+
 		if (clientfd < 0)
 			err(EXIT_FAILURE, "accept");
 
-		FILE *client_socket = fdopen(clientfd, "r+");
-
-		struct connection connection = {
-			.socket_fd = clientfd,
-			.socket = client_socket,
-			.state = HANDSHAKE,
-		};
-		struct connection *c = &connection;
-
-		for (int i = 0; i < 3; i++) {
-			pn_error_t error;
-
-			error = read_inbound_packet(c);
-			if (error != pn_ok)
-				goto close_connection;
-
-			long type = read_varint(c);
-			printf("packet type=%ld\n", type);
-
-			switch (connection.state) {
-			case HANDSHAKE:
-				if (type == 0) {
-					error = handle_handshake(&connection);
-				} else {
-					printf("unexpected packet type\n");
-				}
-				break;
-			case STATUS:
-				if (type < N_STATUS_HANDLERS && status_handlers[type]) {
-					error = status_handlers[type](c);
-				} else {
-					printf("unexpected packet type\n");
-				}
-				break;
-			case LOGIN:
-			case PLAY:
-				printf("unimplemented state\n");
-				goto close_connection;
-			default:
-				printf("unexpected state\n");
-				goto close_connection;
-			}
-
-			if (error != pn_ok)
-				printf("error=%d\n", error);
-
-			end_inbound_packet(c);
-		}
-
-	close_connection:
-		fclose(client_socket);
+		handle_client_connection(clientfd);
 	}
 }

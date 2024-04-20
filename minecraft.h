@@ -9,6 +9,7 @@ enum pn_error {
 	pn_invalid_packet,
 	pn_invalid_state,
 	pn_oom,
+	pn_unhandled_packet,
 };
 typedef enum pn_error pn_error_t;
 
@@ -36,6 +37,8 @@ struct connection {
 	struct packet inbound_packet;
 	struct packet outbound_packet;
 };
+
+void handle_client_connection(int client_socket_fd);
 
 static inline void flush_connection_socket(struct connection *c) {
 	fflush(c->socket);
@@ -69,5 +72,9 @@ void write_int(struct connection *, int);
 void write_long(struct connection *, long);
 
 pn_error_t handle_handshake(struct connection *);
-pn_error_t reply_to_status_request(struct connection *);
-pn_error_t reply_to_status_ping(struct connection *);
+pn_error_t handle_status_state(struct connection *);
+pn_error_t handle_login_state(struct connection *);
+pn_error_t handle_play_state(struct connection *);
+
+// pn_error_t reply_to_status_request(struct connection *);
+// pn_error_t reply_to_status_ping(struct connection *);
