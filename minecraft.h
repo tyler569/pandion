@@ -3,46 +3,53 @@
 #include <stddef.h>
 #include <stdio.h>
 
+enum pn_error {
+	pn_ok = 0,
+	pn_eof,
+	pn_invalid_packet,
+	pn_invalid_state,
+	pn_oom,
+};
+typedef enum pn_error pn_error_t;
+
 void hexdump(const void *data, size_t len);
 
 enum connection_state {
-    HANDSHAKE,
-    STATUS,
-    LOGIN,
-    PLAY,
+	HANDSHAKE,
+	STATUS,
+	LOGIN,
+	PLAY,
 };
 
 struct packet {
-    void *data;
-    size_t len;
+	void *data;
+	size_t len;
 
-    FILE *stream;
+	FILE *stream;
 };
 
 struct connection {
-    int socket_fd;
-    FILE *socket;
-    enum connection_state state;
+	int socket_fd;
+	FILE *socket;
+	enum connection_state state;
 
-    bool disconnected;
-
-    struct packet inbound_packet;
-    struct packet outbound_packet;
+	struct packet inbound_packet;
+	struct packet outbound_packet;
 };
 
 static inline void flush_connection_socket(struct connection *c) {
-    fflush(c->socket);
+	fflush(c->socket);
 }
 
 struct t_string {
-    char *data;
-    size_t len;
+	char *data;
+	size_t len;
 };
 
-void read_inbound_packet(struct connection *);
+pn_error_t read_inbound_packet(struct connection *);
 void end_inbound_packet(struct connection *);
 void new_outbound_packet(struct connection *, long id);
-void send_outbound_packet(struct connection *);
+pn_error_t send_outbound_packet(struct connection *);
 
 long read_varint_from_stream(FILE *);
 void write_varint_to_stream(FILE *, long);
@@ -61,6 +68,6 @@ void write_short(struct connection *, short);
 void write_int(struct connection *, int);
 void write_long(struct connection *, long);
 
-void handle_handshake(struct connection *);
-void reply_to_status_request(struct connection *);
-void reply_to_status_ping(struct connection *);
+pn_error_t handle_handshake(struct connection *);
+pn_error_t reply_to_status_request(struct connection *);
+pn_error_t reply_to_status_ping(struct connection *);
