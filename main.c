@@ -29,6 +29,9 @@ int main() {
 	struct sockaddr_in6 source_addr;
 	socklen_t source_len = sizeof(source_addr);
 
+	struct server server = {};
+	init_server_crypto(&server);
+
 	while (true) {
 		int clientfd
 			= accept(sockfd, (struct sockaddr *)&source_addr, &source_len);
@@ -36,6 +39,6 @@ int main() {
 		if (clientfd < 0)
 			err(EXIT_FAILURE, "accept");
 
-		handle_client_connection(clientfd);
+		handle_client_connection(&server, clientfd);
 	}
 }

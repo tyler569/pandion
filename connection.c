@@ -3,17 +3,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void handle_client_connection(int socket_fd) {
+void handle_client_connection(struct server *server, int socket_fd) {
 	FILE *client_socket = fdopen(socket_fd, "r+");
 
 	struct connection connection = {
+		.server = server,
 		.socket_fd = socket_fd,
 		.socket = client_socket,
 		.state = HANDSHAKE,
 	};
 	struct connection *c = &connection;
 
-	for (int i = 0; i < 3; i++) {
+	while (true) {
 		pn_error_t error;
 
 		error = read_inbound_packet(c);

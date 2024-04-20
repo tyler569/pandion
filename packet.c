@@ -40,9 +40,9 @@ void write_c_string(struct connection *c, const char *string) {
 	fputs(string, c->outbound_packet.stream);
 }
 
-void write_c_string_len(struct connection *c, const char *string, size_t len) {
+void write_data_len(struct connection *c, const void *data, size_t len) {
 	write_varint(c, (long)len);
-	fputs(string, c->outbound_packet.stream);
+	fwrite(data, 1, len, c->outbound_packet.stream);
 }
 
 void write_string(struct connection *c, struct t_string string) {

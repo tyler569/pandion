@@ -36,11 +36,13 @@ pn_error_t handle_status_state(struct connection *c) {
 }
 
 pn_error_t handle_handshake(struct connection *c) {
-	long packet_id = read_varint(c);
-	if (packet_id != 0) {
+	long packet_type = read_varint(c);
+	if (packet_type != 0) {
 		printf("invalid handshake packet id\n");
 		return pn_invalid_packet;
 	}
+
+	printf("handshake packet type=%ld\n", packet_type);
 
 	long version = read_varint(c);
 	struct t_string address = read_string(c);
