@@ -1,7 +1,7 @@
 #include "minecraft.h"
 #include <stdio.h>
 
-const char *handshake_json = "{\"version\":{\"name\":\"1.20\",\"protocol\":765},\"players\":{\"max\":100,\"online\":0},\"description\":{\"text\":\"Hello, world!\"}}";
+const char *handshake_json = "{\"version\":{\"name\":\"1.18.2\",\"protocol\":758},\"players\":{\"max\":100,\"online\":0},\"description\":{\"text\":\"Hello, world!\"}}";
 
 void handle_handshake(struct connection *c, struct packet *p) {
     long version = read_varint(p);
@@ -31,7 +31,7 @@ void reply_to_status_request(struct connection *c, struct packet *) {
     free_packet(response);
 }
 
-void reply_to_ping(struct connection *c, struct packet *p) {
+void reply_to_status_ping(struct connection *c, struct packet *p) {
     long payload = read_long(p);
 
     printf("  ping payload=%ld\n", payload);

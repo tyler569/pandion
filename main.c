@@ -60,7 +60,7 @@ int main() {
                 if (type == 0) {
                     reply_to_status_request(&connection, packet);
                 } else if (type == 1) {
-                    reply_to_ping(&connection, packet);
+                    reply_to_status_ping(&connection, packet);
                 } else {
                     printf("unexpected packet type\n");
                 }

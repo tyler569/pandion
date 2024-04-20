@@ -41,20 +41,20 @@ void free_packet(struct packet *);
 long read_varint_from_stream(FILE *);
 void write_varint_to_stream(FILE *, long);
 
-long read_varint(struct packet *file);
-void write_varint(struct packet *file, long value);
-struct string read_string(struct packet *packet);
-short read_short(struct packet *file);
-int read_int(struct packet *file);
-long read_long(struct packet *file);
+long read_varint(struct packet *);
+struct string read_string(struct packet *);
+short read_short(struct packet *);
+int read_int(struct packet *);
+long read_long(struct packet *);
 
-void write_c_string(struct packet *packet, const char *string);
-void write_c_string_len(struct packet *packet, const char *string, size_t len);
-void write_string(struct packet *packet, struct string string);
-void write_short(struct packet *packet, short value);
-void write_int(struct packet *packet, int value);
-void write_long(struct packet *packet, long value);
+void write_varint(struct packet *, long);
+void write_c_string(struct packet *, const char *);
+void write_c_string_len(struct packet *, const char *, size_t len);
+void write_string(struct packet *, struct string);
+void write_short(struct packet *, short);
+void write_int(struct packet *, int);
+void write_long(struct packet *, long);
 
 void handle_handshake(struct connection *, struct packet *);
 void reply_to_status_request(struct connection *, struct packet *);
-void reply_to_ping(struct connection *, struct packet *);
+void reply_to_status_ping(struct connection *, struct packet *);
