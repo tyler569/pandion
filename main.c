@@ -5,6 +5,13 @@
 #include <stdlib.h>
 #include "minecraft.h"
 
+#define N_STATUS_HANDLERS 2
+
+void (*status_handlers[N_STATUS_HANDLERS])(struct connection *) = {
+    [0] = reply_to_status_request,
+    [1] = reply_to_status_ping,
+};
+
 int main() {
     int rc;
     int sockfd = socket(AF_INET6, SOCK_STREAM, 0);
@@ -13,7 +20,7 @@ int main() {
 
     struct sockaddr_in6 bind_addr = (struct sockaddr_in6) {
         .sin6_family = AF_INET6,
-        .sin6_port = htons(25566),
+        .sin6_port = htons(25565),
         .sin6_addr = in6addr_any,
     };
 
@@ -36,42 +43,48 @@ int main() {
         FILE *client_socket = fdopen(clientfd, "r+");
 
         struct connection connection = {
+            .socket_fd = clientfd,
             .socket = client_socket,
             .state = HANDSHAKE,
         };
+        struct connection *c = &connection;
 
         for (int i = 0; i < 3; i++) {
-            struct packet *packet = read_packet(client_socket);
-            if (!packet) {
-                printf("EOF\n");
+            read_inbound_packet(c);
+            if (c->disconnected)
+				goto close_connection;
+
+            long type = read_varint(c);
+            printf("packet type=%ld\n", type);
+
+            switch (connection.state) {
+            case HANDSHAKE:
+                if (type == 0) {
+                    handle_handshake(&connection);
+                } else {
+                    printf("unexpected packet type\n");
+                }
                 break;
-            }
-
-            long type = read_varint(packet);
-            printf("packet type=%ld len=%zd\n", type, packet->len);
-
-            if (connection.state == HANDSHAKE) {
-                if (type == 0) {
-                    handle_handshake(&connection, packet);
+            case STATUS:
+                if (type < N_STATUS_HANDLERS && status_handlers[type]) {
+                    status_handlers[type](c);
                 } else {
                     printf("unexpected packet type\n");
                 }
-            } else if (connection.state == STATUS) {
-                if (type == 0) {
-                    reply_to_status_request(&connection, packet);
-                } else if (type == 1) {
-                    reply_to_status_ping(&connection, packet);
-                } else {
-                    printf("unexpected packet type\n");
-                }
-            } else {
+                break;
+            case LOGIN:
+            case PLAY:
+                printf("unimplemented state\n");
+				goto close_connection;
+            default:
                 printf("unexpected state\n");
-                break;
+				goto close_connection;
             }
 
-            free_packet(packet);
+            end_inbound_packet(c);
         }
 
+	close_connection:
         fclose(client_socket);
     }
 }

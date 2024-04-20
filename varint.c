@@ -28,10 +28,10 @@ void write_varint_to_stream(FILE *stream, long value) {
     } while (value);
 }
 
-long read_varint(struct packet *packet) {
-    return read_varint_from_stream(packet->reader_writer);
+long read_varint(struct connection *c) {
+    return read_varint_from_stream(c->inbound_packet.stream);
 }
 
-void write_varint(struct packet *packet, long value) {
-    write_varint_to_stream(packet->reader_writer, value);
+void write_varint(struct connection *c, long value) {
+    write_varint_to_stream(c->outbound_packet.stream, value);
 }
