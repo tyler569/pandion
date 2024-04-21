@@ -32,8 +32,7 @@ void handle_client_connection(struct server *server, int socket_fd) {
 			error = handle_login_state(c);
 			break;
 		case PLAY:
-			printf("unimplemented state\n");
-			error = pn_unhandled_packet;
+			error = handle_play_state(c);
 			break;
 		default:
 			printf("unexpected state\n");
@@ -44,7 +43,6 @@ void handle_client_connection(struct server *server, int socket_fd) {
 
 		if (error == pn_unhandled_packet) {
 			printf("unhandled packet\n");
-			break;
 		} else if (error != pn_ok) {
 			goto close_connection;
 		}
@@ -68,7 +66,9 @@ pn_error_t read_inbound_packet_socket(struct connection *c) {
 
 	if (len > 0) {
 		c->inbound_packet.len = len;
-		void *data = realloc(c->inbound_packet.data, len);
+
+		// this is freed in end_inbound_packet by fclose() on fmemopen()
+		void *data = malloc(len);
 
 		if (!data)
 			return pn_oom;
@@ -93,7 +93,7 @@ pn_error_t read_inbound_packet_bio(struct connection *c) {
 
 	if (len > 0) {
 		c->inbound_packet.len = len;
-		void *data = realloc(c->inbound_packet.data, len);
+		void *data = malloc(len);
 
 		if (!data)
 			return pn_oom;
@@ -101,6 +101,8 @@ pn_error_t read_inbound_packet_bio(struct connection *c) {
 		c->inbound_packet.data = data;
 
 		BIO_read(c->aes_decrypt_stream, c->inbound_packet.data, (int)len);
+
+		c->inbound_packet.stream = fmemopen(c->inbound_packet.data, len, "r");
 	}
 
 	return pn_ok;
