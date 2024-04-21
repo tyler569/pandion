@@ -80,7 +80,7 @@ void init_connection_aes(struct connection *c) {
 	c->encryption_enabled = true;
 }
 
-void free_connection_aes(struct connection *c) {
+void free_connection_bios(struct connection *c) {
 	BIO_free_all(c->inbound_stream);
 	BIO_free_all(c->outbound_stream);
 }

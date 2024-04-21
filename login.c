@@ -90,8 +90,7 @@ pn_error_t handle_encryption_response(struct connection *c) {
 	if (rc != pn_ok)
 		return rc;
 
-	pn_error_t send_join_game(struct connection * c);
-	return send_join_game(c);
+	return do_player_join_game(c);
 }
 
 static pn_error_t send_disconnect(struct connection *c, const char *reason) {

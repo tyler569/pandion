@@ -69,6 +69,7 @@ struct connection {
 
 	double x, y, z;
 	float yaw, pitch;
+	bool on_ground;
 };
 
 void handle_client_connection(struct server *, int client_socket_fd);
@@ -82,7 +83,7 @@ pn_error_t decrypt_data_rsa(struct connection *, unsigned char *out,
 	size_t out_len, struct t_string *in);
 
 void init_connection_aes(struct connection *);
-void free_connection_aes(struct connection *);
+void free_connection_bios(struct connection *);
 
 void generate_random_bytes(unsigned char *buf, size_t len);
 
@@ -128,6 +129,8 @@ pn_error_t handle_handshake(struct connection *);
 pn_error_t handle_status_state(struct connection *);
 pn_error_t handle_login_state(struct connection *);
 pn_error_t handle_play_state(struct connection *);
+
+pn_error_t do_player_join_game(struct connection *c);
 
 static inline void print_bytes(const unsigned char *buf, size_t len) {
 	for (size_t i = 0; i < len; i++) {

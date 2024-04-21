@@ -48,8 +48,7 @@ void handle_client_connection(struct server *server, int socket_fd) {
 	}
 
 close_connection:
-	BIO_free_all(c->inbound_stream);
-	BIO_free_all(c->outbound_stream);
+	free_connection_bios(c);
 }
 
 pn_error_t read_inbound_packet_bio(struct connection *c) {
