@@ -128,27 +128,14 @@ void new_outbound_packet(struct connection *c, long id) {
 	write_varint_to_stream(c->outbound_packet.stream, (long)id);
 }
 
-pn_error_t send_outbound_packet_stream(struct connection *c) {
+void send_outbound_packet_stream(struct connection *c) {
 	write_varint_to_stream(c->socket, (long)c->outbound_packet.len);
 	fwrite(c->outbound_packet.data, 1, c->outbound_packet.len, c->socket);
-
-	if (feof(c->socket) || ferror(c->socket))
-		return pn_eof;
-
-	free(c->outbound_packet.data);
-	c->outbound_packet.data = nullptr;
-
-	return pn_ok;
 }
 
-pn_error_t send_outbound_packet_bio(struct connection *c) {
+void send_outbound_packet_bio(struct connection *c) {
 	write_varint_to_bio(c->aes_encrypt_stream, (long)c->outbound_packet.len);
 	BIO_write(c->aes_encrypt_stream, c->outbound_packet.data, (int)c->outbound_packet.len);
-
-	free(c->outbound_packet.data);
-	c->outbound_packet.data = nullptr;
-
-	return pn_ok;
 }
 
 pn_error_t send_outbound_packet(struct connection *c) {
@@ -160,10 +147,18 @@ pn_error_t send_outbound_packet(struct connection *c) {
 	assert(!ferror(c->outbound_packet.stream));
 
 	if (c->encryption_enabled) {
-		return send_outbound_packet_bio(c);
+		send_outbound_packet_bio(c);
 	} else {
-		return send_outbound_packet_stream(c);
+		send_outbound_packet_stream(c);
 	}
+
+	free(c->outbound_packet.data);
+	c->outbound_packet.data = nullptr;
+
+	if (feof(c->socket) || ferror(c->socket))
+		return pn_eof;
+
+	return pn_ok;
 }
 
 void flush_connection_socket(struct connection *c) {

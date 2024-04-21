@@ -124,7 +124,6 @@ static pn_error_t send_login_success(struct connection *c) {
 
 	write_uuid(c, uuid);
 	write_c_string(c, c->username);
-	write_varint(c, 0);
 
 	return send_outbound_packet(c);
 }

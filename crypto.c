@@ -76,6 +76,8 @@ void init_connection_aes(struct connection *c) {
 	BIO_push(encrypt, socket_write);
 
 	c->aes_encrypt_stream = encrypt;
+
+	c->encryption_enabled = true;
 }
 
 void free_connection_aes(struct connection *c) {
