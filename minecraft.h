@@ -42,15 +42,25 @@ struct connection {
 	struct server *server;
 
 	int socket_fd;
-	FILE *socket;
-	enum connection_state state;
 
-	char username[16];
-	unsigned char verify_token[4];
-	unsigned char shared_secret[16];
+	FILE *socket;
+
+	enum connection_state state;
 
 	struct packet inbound_packet;
 	struct packet outbound_packet;
+
+	unsigned char verify_token[4];
+	unsigned char shared_secret[16];
+
+	BIO *aes_encrypt_stream;
+	BIO *aes_decrypt_stream;
+
+	int compression_threshold;
+	bool encryption_enabled;
+
+	char username[16];
+	unsigned char uuid[16];
 
 	double x, y, z;
 	float yaw, pitch;
@@ -58,31 +68,40 @@ struct connection {
 
 void handle_client_connection(struct server *, int client_socket_fd);
 
-static inline void flush_connection_socket(struct connection *c) {
-	fflush(c->socket);
-}
 
 struct t_string {
 	char *data;
 	size_t len;
 };
 
-pn_error_t rsa_decrypt_data(struct connection *c, unsigned char *out,
+pn_error_t decrypt_data_rsa(struct connection *, unsigned char *out,
 	size_t out_len, struct t_string *in);
+
+void init_connection_aes(struct connection *);
+void free_connection_aes(struct connection *);
+
+void generate_random_bytes(unsigned char *buf, size_t len);
 
 pn_error_t read_inbound_packet(struct connection *);
 void end_inbound_packet(struct connection *);
 void new_outbound_packet(struct connection *, long id);
 pn_error_t send_outbound_packet(struct connection *);
+void flush_connection_socket(struct connection *);
 
 long read_varint_from_stream(FILE *);
 void write_varint_to_stream(FILE *, long);
+long read_varint_from_buffer(void *data, size_t len);
+long read_varint_from_bio(BIO *);
+void write_varint_to_bio(BIO *, long);
 
 long read_varint(struct connection *);
 struct t_string read_string(struct connection *);
 short read_short(struct connection *);
 int read_int(struct connection *);
 long read_long(struct connection *);
+float read_float(struct connection *);
+double read_double(struct connection *);
+void read_uuid(struct connection *, unsigned char *uuid);
 
 void write_varint(struct connection *, long);
 void write_c_string(struct connection *, const char *);
@@ -91,12 +110,14 @@ void write_string(struct connection *, struct t_string);
 void write_short(struct connection *, short);
 void write_int(struct connection *, int);
 void write_long(struct connection *, long);
-#define write_fprintf(c, fmt, ...) fprintf(c->outbound_packet.stream, fmt , ## __VA_ARGS__)
+void write_float(struct connection *, float);
+void write_double(struct connection *, double);
+void write_uuid(struct connection *, unsigned char *uuid);
+
+#define write_fprintf(c, fmt, ...) \
+	fprintf(c->outbound_packet.stream, fmt , ## __VA_ARGS__)
 
 pn_error_t handle_handshake(struct connection *);
 pn_error_t handle_status_state(struct connection *);
 pn_error_t handle_login_state(struct connection *);
 pn_error_t handle_play_state(struct connection *);
-
-// pn_error_t reply_to_status_request(struct connection *);
-// pn_error_t reply_to_status_ping(struct connection *);

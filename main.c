@@ -1,7 +1,6 @@
 #include "minecraft.h"
 #include <arpa/inet.h>
 #include <err.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 

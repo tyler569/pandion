@@ -72,3 +72,7 @@ void write_long(struct connection *c, long value) {
 	fputc((char)(value >> 8), c->outbound_packet.stream);
 	fputc((char)value, c->outbound_packet.stream);
 }
+
+void write_uuid(struct connection *c, unsigned char *uuid) {
+	fwrite(uuid, 1, 16, c->outbound_packet.stream);
+}

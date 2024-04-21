@@ -1,8 +1,4 @@
 #include "minecraft.h"
-#include <assert.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
 #include <string.h>
 
 // protocol 758
@@ -21,6 +17,8 @@ enum login_outbound_packet_id {
 
 static pn_error_t send_disconnect(struct connection *c, const char *reason);
 static pn_error_t send_encryption_request(struct connection *c);
+static pn_error_t send_set_compression(struct connection *c, int threshold);
+static pn_error_t send_login_success(struct connection *c);
 
 pn_error_t handle_login_start(struct connection *c);
 pn_error_t handle_encryption_response(struct connection *c);
@@ -63,7 +61,8 @@ pn_error_t handle_encryption_response(struct connection *c) {
 	struct t_string verify_token = read_string(c);
 
 	unsigned char verify_token_buf[4];
-	rsa_decrypt_data(c, verify_token_buf, sizeof(verify_token_buf), &verify_token);
+	decrypt_data_rsa(
+		c, verify_token_buf, sizeof(verify_token_buf), &verify_token);
 	printf("  verify_token: ");
 	for (int i = 0; i < sizeof(verify_token_buf); i++) {
 		printf("%02hhx", verify_token_buf[i]);
@@ -74,7 +73,8 @@ pn_error_t handle_encryption_response(struct connection *c) {
 		return pn_invalid_packet;
 	}
 
-	rsa_decrypt_data(c, c->shared_secret, sizeof(c->shared_secret), &shared_secret);
+	decrypt_data_rsa(
+		c, c->shared_secret, sizeof(c->shared_secret), &shared_secret);
 
 	printf("  shared_secret: ");
 	for (int i = 0; i < sizeof(c->shared_secret); i++) {
@@ -82,7 +82,9 @@ pn_error_t handle_encryption_response(struct connection *c) {
 	}
 	printf("\n");
 
-	return pn_unhandled_packet;
+	init_connection_aes(c);
+
+	return send_login_success(c);
 }
 
 static pn_error_t send_disconnect(struct connection *c, const char *reason) {
@@ -96,11 +98,33 @@ static pn_error_t send_disconnect(struct connection *c, const char *reason) {
 static pn_error_t send_encryption_request(struct connection *c) {
 	new_outbound_packet(c, encryption_request);
 
-	assert(RAND_bytes(c->verify_token, sizeof(c->verify_token)) == 1);
+	generate_random_bytes(c->verify_token, sizeof(c->verify_token));
 
-	write_c_string(c, "");
+	write_c_string(c, "server id");
 	write_data_len(c, c->server->der_public_key, c->server->der_public_key_len);
 	write_data_len(c, c->verify_token, sizeof(c->verify_token));
+
+	return send_outbound_packet(c);
+}
+
+static pn_error_t send_set_compression(struct connection *c, int threshold) {
+	new_outbound_packet(c, set_compression);
+
+	c->compression_threshold = threshold;
+	write_varint(c, threshold);
+
+	return send_outbound_packet(c);
+}
+
+static pn_error_t send_login_success(struct connection *c) {
+	new_outbound_packet(c, login_success);
+
+	unsigned char uuid[16];
+	generate_random_bytes(uuid, sizeof(uuid));
+
+	write_uuid(c, uuid);
+	write_c_string(c, c->username);
+	write_varint(c, 0);
 
 	return send_outbound_packet(c);
 }
