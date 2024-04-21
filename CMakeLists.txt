@@ -7,6 +7,9 @@ find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
+
 add_executable(minecraft
 	main.c
 	varint.c
@@ -17,6 +20,14 @@ add_executable(minecraft
 	connection.c
 	login.c
 	crypto.c
+	json.c
+	nbt.h
+	nbt.c
 )
-
 target_link_libraries(minecraft OpenSSL::Crypto Threads::Threads ZLIB::ZLIB)
+
+add_executable(nbt_test
+	hexdump.c
+	nbt.c
+	nbt_test.c
+)

@@ -5,13 +5,15 @@
 enum login_inbound_packet_id {
 	disconnect = 0,
 	encryption_request = 1,
-	login_success = 2,
-	set_compression = 3,
+	login_plugin_request = 2,
 };
 
 enum login_outbound_packet_id {
 	login_start = 0,
 	encryption_response = 1,
+	login_success = 2,
+	set_compression = 3,
+	login_plugin_response = 4,
 };
 
 
@@ -33,7 +35,7 @@ pn_error_t handle_login_state(struct connection *c) {
 		return handle_login_start(c);
 	case encryption_response:
 		return handle_encryption_response(c);
-	case 2 ... 3:
+	case login_plugin_request:
 		return pn_unhandled_packet;
 	default:
 		printf("unexpected packet type\n");
@@ -124,6 +126,8 @@ static pn_error_t send_login_success(struct connection *c) {
 
 	write_uuid(c, uuid);
 	write_c_string(c, c->username);
+
+	c->state = PLAY;
 
 	return send_outbound_packet(c);
 }
