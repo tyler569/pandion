@@ -8,7 +8,7 @@ static struct nbt_tag *make_overworld_element() {
 	nbt_add_byte_to_compound(tag, "natural", 1);
 	nbt_add_float_to_compound(tag, "ambient_light", 0.0f);
 	nbt_add_string_to_compound(
-		tag, "infiniburn", "minecraft:infiniburn_overworld");
+		tag, "infiniburn", "#minecraft:infiniburn_overworld");
 	nbt_add_byte_to_compound(tag, "respawn_anchor_works", 0);
 	nbt_add_byte_to_compound(tag, "has_skylight", 1);
 	nbt_add_byte_to_compound(tag, "bed_works", 1);
@@ -16,8 +16,8 @@ static struct nbt_tag *make_overworld_element() {
 	nbt_add_byte_to_compound(tag, "has_raids", 1);
 	nbt_add_int_to_compound(tag, "min_y", -64);
 	nbt_add_int_to_compound(tag, "height", 384);
-	nbt_add_int_to_compound(tag, "logical_height", 256);
-	nbt_add_float_to_compound(tag, "coordinate_scale", 1.0f);
+	nbt_add_int_to_compound(tag, "logical_height", 384);
+	nbt_add_double_to_compound(tag, "coordinate_scale", 1.0);
 	nbt_add_byte_to_compound(tag, "ultrawarm", 0);
 	nbt_add_byte_to_compound(tag, "has_ceiling", 0);
 
@@ -27,22 +27,15 @@ static struct nbt_tag *make_overworld_element() {
 static struct nbt_tag *make_biome_effects() {
 	struct nbt_tag *biome_effects = nbt_new_compound();
 
-	nbt_add_int_to_compound(biome_effects, "sky_color", 0);
-	nbt_add_int_to_compound(biome_effects, "water_fog_color", 0);
-	nbt_add_int_to_compound(biome_effects, "fog_color", 0);
-	nbt_add_int_to_compound(biome_effects, "water_color", 0);
+	nbt_add_int_to_compound(biome_effects, "sky_color", 7907327);
+	nbt_add_int_to_compound(biome_effects, "water_fog_color", 329011);
+	nbt_add_int_to_compound(biome_effects, "fog_color", 12638463);
+	nbt_add_int_to_compound(biome_effects, "water_color", 4159204);
 
 	return biome_effects;
 }
 
-static struct nbt_tag *make_biome_registry() {
-	struct nbt_tag *biome_registry = nbt_new_compound();
-
-	nbt_add_string_to_compound(
-		biome_registry, "type", "minecraft:worldgen/biome");
-
-	struct nbt_tag *biomes = nbt_new_list(NBT_COMPOUND);
-
+static struct nbt_tag *make_plains_biome() {
 	struct nbt_tag *plains = nbt_new_compound();
 
 	nbt_add_string_to_compound(plains, "name", "minecraft:plains");
@@ -62,7 +55,18 @@ static struct nbt_tag *make_biome_registry() {
 
 	nbt_add_compound_to_compound(plains, "element", plains_element);
 
-	nbt_add_compound_to_list(biomes, plains);
+	return plains;
+}
+
+static struct nbt_tag *make_biome_registry() {
+	struct nbt_tag *biome_registry = nbt_new_compound();
+
+	nbt_add_string_to_compound(
+		biome_registry, "type", "minecraft:worldgen/biome");
+
+	struct nbt_tag *biomes = nbt_new_list(NBT_COMPOUND);
+
+	nbt_add_compound_to_list(biomes, make_plains_biome());
 
 	nbt_add_list_to_compound(biome_registry, "value", biomes);
 
@@ -103,6 +107,10 @@ void init_server_state(struct server *s) {
 
 	nbt_add_compound_to_compound(
 		s->dimension_codec, "minecraft:worldgen/biome", make_biome_registry());
+
+	FILE *ser_file = fopen("dimension_codec.nbt", "wb");
+	nbt_write_to_stream(s->dimension_codec, ser_file);
+	fclose(ser_file);
 
 	s->dimension = make_overworld_element();
 }
