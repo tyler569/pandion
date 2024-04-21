@@ -23,6 +23,8 @@ add_executable(minecraft
 	json.c
 	nbt.h
 	nbt.c
+	play.c
+	server.c
 )
 target_link_libraries(minecraft OpenSSL::Crypto Threads::Threads ZLIB::ZLIB)
 

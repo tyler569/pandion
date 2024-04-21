@@ -135,7 +135,8 @@ void send_outbound_packet_stream(struct connection *c) {
 
 void send_outbound_packet_bio(struct connection *c) {
 	write_varint_to_bio(c->aes_encrypt_stream, (long)c->outbound_packet.len);
-	BIO_write(c->aes_encrypt_stream, c->outbound_packet.data, (int)c->outbound_packet.len);
+	BIO_write(c->aes_encrypt_stream, c->outbound_packet.data,
+		(int)c->outbound_packet.len);
 }
 
 pn_error_t send_outbound_packet(struct connection *c) {

@@ -16,7 +16,6 @@ enum login_outbound_packet_id {
 	login_plugin_response = 4,
 };
 
-
 static pn_error_t send_disconnect(struct connection *c, const char *reason);
 static pn_error_t send_encryption_request(struct connection *c);
 static pn_error_t send_set_compression(struct connection *c, int threshold);
@@ -59,18 +58,20 @@ pn_error_t handle_login_start(struct connection *c) {
 }
 
 pn_error_t handle_encryption_response(struct connection *c) {
+	int rc;
+
 	struct t_string shared_secret = read_string(c);
 	struct t_string verify_token = read_string(c);
 
 	unsigned char verify_token_buf[4];
 	decrypt_data_rsa(
 		c, verify_token_buf, sizeof(verify_token_buf), &verify_token);
+
 	printf("  verify_token: ");
-	for (int i = 0; i < sizeof(verify_token_buf); i++) {
-		printf("%02hhx", verify_token_buf[i]);
-	}
-	printf("\n");
-	if (memcmp(verify_token_buf, c->verify_token, sizeof(verify_token_buf)) != 0) {
+	print_bytes(verify_token_buf, sizeof(verify_token_buf));
+
+	if (memcmp(verify_token_buf, c->verify_token, sizeof(verify_token_buf))
+		!= 0) {
 		send_disconnect(c, "Invalid verify token");
 		return pn_invalid_packet;
 	}
@@ -79,14 +80,18 @@ pn_error_t handle_encryption_response(struct connection *c) {
 		c, c->shared_secret, sizeof(c->shared_secret), &shared_secret);
 
 	printf("  shared_secret: ");
-	for (int i = 0; i < sizeof(c->shared_secret); i++) {
-		printf("%02hhx", c->shared_secret[i]);
-	}
-	printf("\n");
+	print_bytes(c->shared_secret, sizeof(c->shared_secret));
 
 	init_connection_aes(c);
 
-	return send_login_success(c);
+	c->state = PLAY;
+
+	rc = send_login_success(c);
+	if (rc != pn_ok)
+		return rc;
+
+	pn_error_t send_join_game(struct connection * c);
+	return send_join_game(c);
 }
 
 static pn_error_t send_disconnect(struct connection *c, const char *reason) {
@@ -126,8 +131,6 @@ static pn_error_t send_login_success(struct connection *c) {
 
 	write_uuid(c, uuid);
 	write_c_string(c, c->username);
-
-	c->state = PLAY;
 
 	return send_outbound_packet(c);
 }

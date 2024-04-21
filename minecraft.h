@@ -1,5 +1,6 @@
 #pragma once
 
+#include "nbt.h"
 #include <openssl/evp.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -34,9 +35,13 @@ struct server {
 	EVP_PKEY *server_key;
 	unsigned char *der_public_key;
 	size_t der_public_key_len;
+
+	struct nbt_tag *dimension;
+	struct nbt_tag *dimension_codec;
 };
 
 void init_server_crypto(struct server *s);
+void init_server_state(struct server *s);
 
 struct connection {
 	struct server *server;
@@ -62,12 +67,13 @@ struct connection {
 	char username[16];
 	unsigned char uuid[16];
 
+	int entity_id;
+
 	double x, y, z;
 	float yaw, pitch;
 };
 
 void handle_client_connection(struct server *, int client_socket_fd);
-
 
 struct t_string {
 	char *data;
@@ -96,6 +102,7 @@ void write_varint_to_bio(BIO *, long);
 
 long read_varint(struct connection *);
 struct t_string read_string(struct connection *);
+char read_byte(struct connection *);
 short read_short(struct connection *);
 int read_int(struct connection *);
 long read_long(struct connection *);
@@ -107,17 +114,26 @@ void write_varint(struct connection *, long);
 void write_c_string(struct connection *, const char *);
 void write_data_len(struct connection *, const void *, size_t len);
 void write_string(struct connection *, struct t_string);
+void write_byte(struct connection *, char);
 void write_short(struct connection *, short);
 void write_int(struct connection *, int);
 void write_long(struct connection *, long);
 void write_float(struct connection *, float);
 void write_double(struct connection *, double);
 void write_uuid(struct connection *, unsigned char *uuid);
+void write_nbt(struct connection *, struct nbt_tag *);
 
 #define write_fprintf(c, fmt, ...) \
-	fprintf(c->outbound_packet.stream, fmt , ## __VA_ARGS__)
+	fprintf(c->outbound_packet.stream, fmt, ##__VA_ARGS__)
 
 pn_error_t handle_handshake(struct connection *);
 pn_error_t handle_status_state(struct connection *);
 pn_error_t handle_login_state(struct connection *);
 pn_error_t handle_play_state(struct connection *);
+
+static inline void print_bytes(const unsigned char *buf, size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		printf("%02hhx", buf[i]);
+	}
+	printf("\n");
+}

@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
 enum nbt_type {
 	NBT_END = 0,
 	NBT_BYTE = 1,
@@ -70,7 +69,8 @@ struct nbt_tag *nbt_new_int_array(int *data, uint32_t len);
 struct nbt_tag *nbt_new_long_array(long *data, uint32_t len);
 
 void nbt_add_to_list(struct nbt_tag *list, struct nbt_tag *tag);
-void nbt_add_to_compound(struct nbt_tag *compound, const char *name, struct nbt_tag *tag);
+void nbt_add_to_compound(
+	struct nbt_tag *compound, const char *name, struct nbt_tag *tag);
 
 void nbt_add_byte_to_list(struct nbt_tag *list, char value);
 void nbt_add_short_to_list(struct nbt_tag *list, short value);
@@ -85,18 +85,30 @@ void nbt_add_long_array_to_list(struct nbt_tag *list, uint32_t len, long *data);
 void nbt_add_list_to_list(struct nbt_tag *list, struct nbt_tag *list_);
 void nbt_add_compound_to_list(struct nbt_tag *list, struct nbt_tag *compound);
 
-void nbt_add_byte_to_compound(struct nbt_tag *compound, const char *name, char value);
-void nbt_add_short_to_compound(struct nbt_tag *compound, const char *name, short value);
-void nbt_add_int_to_compound(struct nbt_tag *compound, const char *name, int value);
-void nbt_add_long_to_compound(struct nbt_tag *compound, const char *name, long value);
-void nbt_add_float_to_compound(struct nbt_tag *compound, const char *name, float value);
-void nbt_add_double_to_compound(struct nbt_tag *compound, const char *name, double value);
-void nbt_add_byte_array_to_compound(struct nbt_tag *compound, const char *name, uint32_t len, char *data);
-void nbt_add_string_to_compound(struct nbt_tag *compound, const char *name, const char *string);
-void nbt_add_int_array_to_compound(struct nbt_tag *compound, const char *name, uint32_t len, int *data);
-void nbt_add_long_array_to_compound(struct nbt_tag *compound, const char *name, uint32_t len, long *data);
-void nbt_add_list_to_compound(struct nbt_tag *compound, const char *name, struct nbt_tag *list);
-void nbt_add_compound_to_compound(struct nbt_tag *compound, const char *name, struct nbt_tag *compound_);
+void nbt_add_byte_to_compound(
+	struct nbt_tag *compound, const char *name, char value);
+void nbt_add_short_to_compound(
+	struct nbt_tag *compound, const char *name, short value);
+void nbt_add_int_to_compound(
+	struct nbt_tag *compound, const char *name, int value);
+void nbt_add_long_to_compound(
+	struct nbt_tag *compound, const char *name, long value);
+void nbt_add_float_to_compound(
+	struct nbt_tag *compound, const char *name, float value);
+void nbt_add_double_to_compound(
+	struct nbt_tag *compound, const char *name, double value);
+void nbt_add_byte_array_to_compound(
+	struct nbt_tag *compound, const char *name, uint32_t len, char *data);
+void nbt_add_string_to_compound(
+	struct nbt_tag *compound, const char *name, const char *string);
+void nbt_add_int_array_to_compound(
+	struct nbt_tag *compound, const char *name, uint32_t len, int *data);
+void nbt_add_long_array_to_compound(
+	struct nbt_tag *compound, const char *name, uint32_t len, long *data);
+void nbt_add_list_to_compound(
+	struct nbt_tag *compound, const char *name, struct nbt_tag *list);
+void nbt_add_compound_to_compound(
+	struct nbt_tag *compound, const char *name, struct nbt_tag *compound_);
 
 void nbt_print(struct nbt_tag *tag);
 

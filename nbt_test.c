@@ -25,11 +25,11 @@ int main() {
 	nbt_assert_eq(tag, "\x0a\x00\x{08}compound\x00", 12);
 	free(tag);
 
-	tag = nbt_new_byte_array(3, (char[]){1, 2, 3});
+	tag = nbt_new_byte_array(3, (char[]) { 1, 2, 3 });
 	tag->name = "byteArrayTest";
-	nbt_assert_eq(tag, "\x07\x00\x{0d}byteArrayTest\x00\x00\x00\x03\x01\x02\x03", 23);
+	nbt_assert_eq(
+		tag, "\x07\x00\x{0d}byteArrayTest\x00\x00\x00\x03\x01\x02\x03", 23);
 	free(tag);
-
 
 	char *nbt_data;
 	size_t nbt_len;
@@ -39,7 +39,8 @@ int main() {
 		tag->name = strdup("hello world");
 		nbt_add_string_to_compound(tag, "name", "Bananrama");
 
-		if (nbt_open_test_file("nbt_test_data/hello_world.nbt", &nbt_data, &nbt_len)) {
+		if (nbt_open_test_file(
+				"nbt_test_data/hello_world.nbt", &nbt_data, &nbt_len)) {
 			nbt_assert_eq(tag, nbt_data, nbt_len);
 			free(nbt_data);
 		} else {
@@ -55,7 +56,8 @@ int main() {
 
 		nbt_add_long_to_compound(tag, "longTest", 9223372036854775807);
 		nbt_add_short_to_compound(tag, "shortTest", 32767);
-		nbt_add_string_to_compound(tag, "stringTest", "HELLO WORLD THIS IS A TEST STRING \xc3\x85\xc3\x84\xc3\x96!");
+		nbt_add_string_to_compound(tag, "stringTest",
+			"HELLO WORLD THIS IS A TEST STRING \xc3\x85\xc3\x84\xc3\x96!");
 		nbt_add_float_to_compound(tag, "floatTest", 0.49823147058486938f);
 		nbt_add_int_to_compound(tag, "intTest", 2147483647);
 
@@ -108,15 +110,19 @@ int main() {
 
 		char byte_array[1000];
 		for (int i = 0; i < 1000; i++) {
-			byte_array[i] = (char)((i*i*255+i*7) % 100);
+			byte_array[i] = (char)((i * i * 255 + i * 7) % 100);
 		}
-		nbt_add_byte_array_to_compound(tag, "byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))", 1000, byte_array);
+		nbt_add_byte_array_to_compound(tag,
+			"byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, "
+		    "starting with n=0 (0, 62, 34, 16, 8, ...))",
+			1000, byte_array);
 
 		nbt_add_double_to_compound(tag, "doubleTest", 0.49312871321823148);
 
 		nbt_print(tag);
 
-		if (nbt_open_test_file("nbt_test_data/bigtest.nbt", &nbt_data, &nbt_len)) {
+		if (nbt_open_test_file(
+				"nbt_test_data/bigtest.nbt", &nbt_data, &nbt_len)) {
 			nbt_assert_eq(tag, nbt_data, nbt_len);
 			free(nbt_data);
 		} else {
@@ -148,7 +154,8 @@ void nbt_assert_eq(struct nbt_tag *nbt, const char *expected, size_t len) {
 
 	for (size_t i = 0; i < len; i++) {
 		if (nbt_data[i] != u_expected[i]) {
-			printf("Expected: %02hhx, got: %02hhx\n", u_expected[i], nbt_data[i]);
+			printf(
+				"Expected: %02hhx, got: %02hhx\n", u_expected[i], nbt_data[i]);
 
 			hexdump(nbt_data, nbt_len);
 			assert(0);

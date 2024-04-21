@@ -30,6 +30,7 @@ int main() {
 
 	struct server server = {};
 	init_server_crypto(&server);
+	init_server_state(&server);
 
 	while (true) {
 		int clientfd

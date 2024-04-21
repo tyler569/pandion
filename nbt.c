@@ -1,5 +1,5 @@
-#include "list.h"
 #include "nbt.h"
+#include "list.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,7 +95,8 @@ void nbt_add_to_list(struct nbt_tag *list, struct nbt_tag *tag) {
 	list_push(&list->list.data, tag);
 }
 
-void nbt_add_to_compound(struct nbt_tag *compound, const char *name, struct nbt_tag *tag) {
+void nbt_add_to_compound(
+	struct nbt_tag *compound, const char *name, struct nbt_tag *tag) {
 	assert(compound->type == NBT_COMPOUND);
 	tag->name = strdup(name);
 	list_push(&compound->compound, tag);
@@ -137,7 +138,8 @@ void nbt_add_double_to_list(struct nbt_tag *list, double value) {
 	nbt_add_to_list(list, nbt_new_double(value));
 }
 
-void nbt_add_byte_array_to_list(struct nbt_tag *list, uint32_t len, char *data) {
+void nbt_add_byte_array_to_list(
+	struct nbt_tag *list, uint32_t len, char *data) {
 	assert(list->type == NBT_LIST);
 	assert(list->list.type == NBT_BYTE_ARRAY);
 	nbt_add_to_list(list, nbt_new_byte_array(len, data));
@@ -155,7 +157,8 @@ void nbt_add_int_array_to_list(struct nbt_tag *list, uint32_t len, int *data) {
 	nbt_add_to_list(list, nbt_new_int_array(data, len));
 }
 
-void nbt_add_long_array_to_list(struct nbt_tag *list, uint32_t len, long *data) {
+void nbt_add_long_array_to_list(
+	struct nbt_tag *list, uint32_t len, long *data) {
 	assert(list->type == NBT_LIST);
 	assert(list->list.type == NBT_LONG_ARRAY);
 	nbt_add_to_list(list, nbt_new_long_array(data, len));
@@ -167,77 +170,88 @@ void nbt_add_list_to_list(struct nbt_tag *list, struct nbt_tag *nested_list) {
 	nbt_add_to_list(list, nested_list);
 }
 
-void nbt_add_compound_to_list(struct nbt_tag *list, struct nbt_tag *nested_compound) {
+void nbt_add_compound_to_list(
+	struct nbt_tag *list, struct nbt_tag *nested_compound) {
 	assert(list->type == NBT_LIST);
 	assert(list->list.type == NBT_COMPOUND);
 	nbt_add_to_list(list, nested_compound);
 }
 
-void nbt_add_byte_to_compound(struct nbt_tag *compound, const char *name, char value) {
+void nbt_add_byte_to_compound(
+	struct nbt_tag *compound, const char *name, char value) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_byte(value));
 }
 
-void nbt_add_short_to_compound(struct nbt_tag *compound, const char *name, short value) {
+void nbt_add_short_to_compound(
+	struct nbt_tag *compound, const char *name, short value) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_short(value));
 }
 
-void nbt_add_int_to_compound(struct nbt_tag *compound, const char *name, int value) {
+void nbt_add_int_to_compound(
+	struct nbt_tag *compound, const char *name, int value) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_int(value));
 }
 
-void nbt_add_long_to_compound(struct nbt_tag *compound, const char *name, long value) {
+void nbt_add_long_to_compound(
+	struct nbt_tag *compound, const char *name, long value) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_long(value));
 }
 
-void nbt_add_float_to_compound(struct nbt_tag *compound, const char *name, float value) {
+void nbt_add_float_to_compound(
+	struct nbt_tag *compound, const char *name, float value) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_float(value));
 }
 
-void nbt_add_double_to_compound(struct nbt_tag *compound, const char *name, double value) {
+void nbt_add_double_to_compound(
+	struct nbt_tag *compound, const char *name, double value) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_double(value));
 }
 
-void nbt_add_byte_array_to_compound(struct nbt_tag *compound, const char *name, uint32_t len, char *data) {
+void nbt_add_byte_array_to_compound(
+	struct nbt_tag *compound, const char *name, uint32_t len, char *data) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_byte_array(len, data));
 }
 
-void nbt_add_string_to_compound(struct nbt_tag *compound, const char *name, const char *string) {
+void nbt_add_string_to_compound(
+	struct nbt_tag *compound, const char *name, const char *string) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_string(string));
 }
 
-void nbt_add_int_array_to_compound(struct nbt_tag *compound, const char *name, uint32_t len, int *data) {
+void nbt_add_int_array_to_compound(
+	struct nbt_tag *compound, const char *name, uint32_t len, int *data) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_int_array(data, len));
 }
 
-void nbt_add_long_array_to_compound(struct nbt_tag *compound, const char *name, uint32_t len, long *data) {
+void nbt_add_long_array_to_compound(
+	struct nbt_tag *compound, const char *name, uint32_t len, long *data) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_long_array(data, len));
 }
 
-void nbt_add_list_to_compound(struct nbt_tag *compound, const char *name, struct nbt_tag *list) {
+void nbt_add_list_to_compound(
+	struct nbt_tag *compound, const char *name, struct nbt_tag *list) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, list);
 }
 
-void nbt_add_compound_to_compound(struct nbt_tag *compound, const char *name, struct nbt_tag *nested_compound) {
+void nbt_add_compound_to_compound(struct nbt_tag *compound, const char *name,
+	struct nbt_tag *nested_compound) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nested_compound);
 }
 
 void nbt_print_rec(struct nbt_tag *tag, int depth);
 
-void nbt_print(struct nbt_tag *tag) {
-	nbt_print_rec(tag, 0);
-}
+void nbt_print(struct nbt_tag *tag) { nbt_print_rec(tag, 0); }
 
 void nbt_print_rec(struct nbt_tag *tag, int depth) {
 	for (int i = 0; i < depth; i++) {
@@ -277,9 +291,7 @@ void nbt_print_rec(struct nbt_tag *tag, int depth) {
 		break;
 	case NBT_LIST:
 		printf("List: [\n");
-		for_each(&tag->list.data) {
-			nbt_print_rec(*it, depth + 1);
-		}
+		for_each(&tag->list.data) { nbt_print_rec(*it, depth + 1); }
 		for (int i = 0; i < depth; i++) {
 			printf("  ");
 		}
@@ -287,9 +299,7 @@ void nbt_print_rec(struct nbt_tag *tag, int depth) {
 		break;
 	case NBT_COMPOUND:
 		printf("Compound: {\n");
-		for_each(&tag->compound) {
-			nbt_print_rec(*it, depth + 1);
-		}
+		for_each(&tag->compound) { nbt_print_rec(*it, depth + 1); }
 		for (int i = 0; i < depth; i++) {
 			printf("  ");
 		}
@@ -400,15 +410,11 @@ void nbt_write_tag_data_to_stream(struct nbt_tag *tag, FILE *stream) {
 		fwrite(&tag->list.type, sizeof(char), 1, stream);
 		nbt_write_be_int_to_stream(list_length(&tag->list.data), stream);
 
-		for_each(&tag->list.data) {
-			nbt_write_tag_data_to_stream(*it, stream);
-		}
+		for_each(&tag->list.data) { nbt_write_tag_data_to_stream(*it, stream); }
 		break;
 	}
 	case NBT_COMPOUND:
-		for_each(&tag->compound) {
-			nbt_write_to_stream(*it, stream);
-		}
+		for_each(&tag->compound) { nbt_write_to_stream(*it, stream); }
 		fputc(NBT_END, stream);
 		break;
 	case NBT_INT_ARRAY:
@@ -436,15 +442,11 @@ void nbt_free(struct nbt_tag *tag) {
 		free((void *)tag->string);
 		break;
 	case NBT_LIST:
-		for_each(&tag->list.data) {
-			nbt_free(*it);
-		}
+		for_each(&tag->list.data) { nbt_free(*it); }
 		list_free(&tag->list.data);
 		break;
 	case NBT_COMPOUND:
-		for_each(&tag->compound) {
-			nbt_free(*it);
-		}
+		for_each(&tag->compound) { nbt_free(*it); }
 		list_free(&tag->compound);
 		break;
 	case NBT_INT_ARRAY:

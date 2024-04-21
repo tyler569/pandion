@@ -1,4 +1,5 @@
 #include "minecraft.h"
+#include "nbt.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,15 @@ struct t_string read_string(struct connection *c) {
 	string.data[string.len] = '\0';
 
 	return string;
+}
+
+char read_byte(struct connection *c) {
+	int i = fgetc(c->inbound_packet.stream);
+
+	if (i == EOF)
+		return 0;
+
+	return (char)i;
 }
 
 short read_short(struct connection *c) {
@@ -35,6 +45,16 @@ long read_long(struct connection *c) {
 		| ((long)buf[6] << 8) | (long)buf[7];
 }
 
+float read_float(struct connection *c) {
+	int i = read_int(c);
+	return *(float *)&i;
+}
+
+double read_double(struct connection *c) {
+	long i = read_long(c);
+	return *(double *)&i;
+}
+
 void write_c_string(struct connection *c, const char *string) {
 	write_varint(c, (long)strlen(string));
 	fputs(string, c->outbound_packet.stream);
@@ -48,6 +68,10 @@ void write_data_len(struct connection *c, const void *data, size_t len) {
 void write_string(struct connection *c, struct t_string string) {
 	write_varint(c, (long)string.len);
 	fwrite(string.data, 1, string.len, c->outbound_packet.stream);
+}
+
+void write_byte(struct connection *c, char value) {
+	fputc(value, c->outbound_packet.stream);
 }
 
 void write_short(struct connection *c, short value) {
@@ -73,6 +97,18 @@ void write_long(struct connection *c, long value) {
 	fputc((char)value, c->outbound_packet.stream);
 }
 
+void write_float(struct connection *c, float value) {
+	write_int(c, *(int *)&value);
+}
+
+void write_double(struct connection *c, double value) {
+	write_long(c, *(long *)&value);
+}
+
 void write_uuid(struct connection *c, unsigned char *uuid) {
 	fwrite(uuid, 1, 16, c->outbound_packet.stream);
+}
+
+void write_nbt(struct connection *c, struct nbt_tag *tag) {
+	nbt_write_to_stream(tag, c->outbound_packet.stream);
 }
