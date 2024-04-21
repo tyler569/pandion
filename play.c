@@ -5,23 +5,38 @@ enum play_inbound_packet_id {
 	player_position = 0x11,
 	player_position_and_rotation = 0x12,
 	player_rotation = 0x13,
+	keepalive_client = 0x0f,
 };
 
 enum play_outbound_packet_id {
 	join_game = 0x26,
 	plugin_message_server = 0x18,
+	keepalive_server = 0x21,
 };
 
 pn_error_t handle_client_settings(struct connection *c);
 pn_error_t handle_position(struct connection *c);
 pn_error_t handle_position_and_rotation(struct connection *c);
 pn_error_t handle_rotation(struct connection *c);
+pn_error_t handle_keepalive(struct connection *c);
 
 pn_error_t send_join_game(struct connection *c);
 pn_error_t send_plugin_message_server(struct connection *c);
+pn_error_t send_keep_alive(struct connection *c);
 
 pn_error_t handle_play_state(struct connection *c) {
 	long packet_type = read_varint(c);
+
+	time_t now = time(nullptr);
+	if (now - c->last_keepalive_sent > 20) {
+		c->last_keepalive_sent = now;
+		send_keep_alive(c);
+	}
+
+	if (now - c->last_keepalive_received > 30) {
+		printf("client timed out\n");
+		return pn_timeout;
+	}
 
 	printf("play packet type=%ld\n", packet_type);
 
@@ -34,8 +49,9 @@ pn_error_t handle_play_state(struct connection *c) {
 		return handle_position_and_rotation(c);
 	case player_rotation:
 		return handle_rotation(c);
+	case keepalive_client:
+		return handle_keepalive(c);
 	default:
-		printf("unhandled play packet type\n");
 		return pn_unhandled_packet;
 	}
 }
@@ -143,5 +159,27 @@ pn_error_t do_player_join_game(struct connection *c) {
 	if (rc != pn_ok)
 		return rc;
 
+	c->last_keepalive_received = time(nullptr);
+
 	return pn_ok;
+}
+
+pn_error_t handle_keepalive(struct connection *c) {
+	long keepalive_id = read_long(c);
+	printf("  keepalive id=%ld\n", keepalive_id);
+
+	if (keepalive_id == c->last_keepalive_sent) {
+		c->last_keepalive_received = time(nullptr);
+		return pn_ok;
+	} else {
+		return pn_invalid_packet;
+	}
+}
+
+pn_error_t send_keep_alive(struct connection *c) {
+	new_outbound_packet(c, keepalive_server);
+
+	write_long(c, c->last_keepalive_sent);
+
+	return send_outbound_packet(c);
 }

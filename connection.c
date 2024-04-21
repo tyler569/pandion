@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 void handle_client_connection(struct server *server, int socket_fd) {
 	struct connection connection = {
@@ -43,12 +44,14 @@ void handle_client_connection(struct server *server, int socket_fd) {
 		if (error == pn_unhandled_packet) {
 			printf("unhandled packet\n");
 		} else if (error != pn_ok) {
+			printf("pn_error: %d, closing connection\n", error);
 			goto close_connection;
 		}
 	}
 
 close_connection:
 	free_connection_bios(c);
+	close(c->socket_fd);
 }
 
 pn_error_t read_inbound_packet_bio(struct connection *c) {

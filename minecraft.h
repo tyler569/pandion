@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nbt.h"
+#include "rbtree.h"
 #include <openssl/evp.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -12,6 +13,7 @@ enum pn_error {
 	pn_invalid_state,
 	pn_oom,
 	pn_unhandled_packet,
+	pn_timeout,
 };
 typedef enum pn_error pn_error_t;
 
@@ -43,6 +45,23 @@ struct server {
 void init_server_crypto(struct server *s);
 void init_server_state(struct server *s);
 
+struct chunk_section {
+	int y;
+
+	void *blocks;
+	void *palette;
+};
+
+struct chunk {
+	int x, z;
+
+	struct chunk_section sections[16];
+};
+
+struct world {
+	struct rbtree chunk_cache;
+};
+
 struct connection {
 	struct server *server;
 
@@ -55,6 +74,9 @@ struct connection {
 
 	struct packet inbound_packet;
 	struct packet outbound_packet;
+
+	time_t last_keepalive_sent;
+	time_t last_keepalive_received;
 
 	unsigned char verify_token[4];
 	unsigned char shared_secret[16];
