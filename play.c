@@ -38,15 +38,16 @@ pn_error_t send_join_game(struct connection *c) {
 	write_int(c, c->entity_id);
 	write_byte(c, 0); // hardcore
 	write_byte(c, 1); // gamemode
-	write_byte(c, -1); // previous gamemode
+	write_byte(c, 1); // previous gamemode
 	write_varint(c, 1); // world count
 	write_c_string(c, "minecraft:overworld"); // world names array
 	write_nbt(c, c->server->dimension_codec);
 	write_nbt(c, c->server->dimension);
 	write_c_string(c, "minecraft:overworld"); // current world name
-	write_long(c, 0); // hashed seed
-	write_varint(c, 0); // max players (ignored)
+	write_long(c, 1); // hashed seed
+	write_varint(c, 100); // max players (ignored)
 	write_varint(c, 10); // view distance
+	write_varint(c, 10); // simulation distance
 	write_byte(c, 0); // reduced debug info
 	write_byte(c, 1); // enable respawn screen
 	write_byte(c, 0); // debug world
