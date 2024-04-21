@@ -4,12 +4,11 @@
 #include <stdlib.h>
 
 void handle_client_connection(struct server *server, int socket_fd) {
-	FILE *client_socket = fdopen(socket_fd, "r+");
-
 	struct connection connection = {
 		.server = server,
 		.socket_fd = socket_fd,
-		.socket = client_socket,
+		.inbound_stream = BIO_new_fd(socket_fd, BIO_NOCLOSE),
+		.outbound_stream = BIO_new_fd(socket_fd, BIO_NOCLOSE),
 		.state = HANDSHAKE,
 	};
 	struct connection *c = &connection;
@@ -49,44 +48,12 @@ void handle_client_connection(struct server *server, int socket_fd) {
 	}
 
 close_connection:
-	if (c->encryption_enabled)
-		free_connection_aes(c);
-
-	fclose(client_socket);
-}
-
-pn_error_t read_inbound_packet_socket(struct connection *c) {
-	long len = read_varint_from_stream(c->socket);
-
-	if (feof(c->socket) || ferror(c->socket))
-		return pn_eof;
-
-	if (len == 0)
-		return pn_invalid_packet;
-
-	if (len > 0) {
-		c->inbound_packet.len = len;
-
-		// this is freed in end_inbound_packet by fclose() on fmemopen()
-		void *data = malloc(len);
-
-		if (!data)
-			return pn_oom;
-
-		c->inbound_packet.data = data;
-
-		fread(c->inbound_packet.data, 1, len, c->socket);
-		if (feof(c->socket) || ferror(c->socket))
-			return pn_eof;
-
-		c->inbound_packet.stream = fmemopen(c->inbound_packet.data, len, "r");
-	}
-
-	return pn_ok;
+	BIO_free_all(c->inbound_stream);
+	BIO_free_all(c->outbound_stream);
 }
 
 pn_error_t read_inbound_packet_bio(struct connection *c) {
-	long len = read_varint_from_bio(c->aes_decrypt_stream);
+	long len = read_varint_from_bio(c->inbound_stream);
 
 	if (len == 0)
 		return pn_invalid_packet;
@@ -100,7 +67,7 @@ pn_error_t read_inbound_packet_bio(struct connection *c) {
 
 		c->inbound_packet.data = data;
 
-		BIO_read(c->aes_decrypt_stream, c->inbound_packet.data, (int)len);
+		BIO_read(c->inbound_stream, c->inbound_packet.data, (int)len);
 
 		c->inbound_packet.stream = fmemopen(c->inbound_packet.data, len, "r");
 	}
@@ -109,11 +76,7 @@ pn_error_t read_inbound_packet_bio(struct connection *c) {
 }
 
 pn_error_t read_inbound_packet(struct connection *c) {
-	if (c->encryption_enabled) {
-		return read_inbound_packet_bio(c);
-	} else {
-		return read_inbound_packet_socket(c);
-	}
+	return read_inbound_packet_bio(c);
 }
 
 void end_inbound_packet(struct connection *c) {
@@ -130,14 +93,9 @@ void new_outbound_packet(struct connection *c, long id) {
 	write_varint_to_stream(c->outbound_packet.stream, (long)id);
 }
 
-void send_outbound_packet_stream(struct connection *c) {
-	write_varint_to_stream(c->socket, (long)c->outbound_packet.len);
-	fwrite(c->outbound_packet.data, 1, c->outbound_packet.len, c->socket);
-}
-
 void send_outbound_packet_bio(struct connection *c) {
-	write_varint_to_bio(c->aes_encrypt_stream, (long)c->outbound_packet.len);
-	BIO_write(c->aes_encrypt_stream, c->outbound_packet.data,
+	write_varint_to_bio(c->outbound_stream, (long)c->outbound_packet.len);
+	BIO_write(c->outbound_stream, c->outbound_packet.data,
 		(int)c->outbound_packet.len);
 }
 
@@ -149,25 +107,17 @@ pn_error_t send_outbound_packet(struct connection *c) {
 	assert(!feof(c->outbound_packet.stream));
 	assert(!ferror(c->outbound_packet.stream));
 
-	if (c->encryption_enabled) {
-		send_outbound_packet_bio(c);
-	} else {
-		send_outbound_packet_stream(c);
-	}
+	send_outbound_packet_bio(c);
 
 	free(c->outbound_packet.data);
 	c->outbound_packet.data = nullptr;
 
-	if (feof(c->socket) || ferror(c->socket))
+	if (BIO_eof(c->outbound_stream))
 		return pn_eof;
 
 	return pn_ok;
 }
 
 void flush_connection_socket(struct connection *c) {
-	if (c->encryption_enabled) {
-		BIO_flush(c->aes_encrypt_stream);
-	} else {
-		fflush(c->socket);
-	}
+	BIO_flush(c->outbound_stream);
 }

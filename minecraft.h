@@ -48,7 +48,8 @@ struct connection {
 
 	int socket_fd;
 
-	FILE *socket;
+	BIO *inbound_stream;
+	BIO *outbound_stream;
 
 	enum connection_state state;
 
@@ -57,9 +58,6 @@ struct connection {
 
 	unsigned char verify_token[4];
 	unsigned char shared_secret[16];
-
-	BIO *aes_encrypt_stream;
-	BIO *aes_decrypt_stream;
 
 	int compression_threshold;
 	bool encryption_enabled;

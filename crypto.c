@@ -63,28 +63,26 @@ pn_error_t decrypt_data_rsa(struct connection *c, unsigned char *out,
 }
 
 void init_connection_aes(struct connection *c) {
-	BIO *socket_read = BIO_new_fp(c->socket, BIO_NOCLOSE);
 	BIO *decrypt = BIO_new(BIO_f_cipher());
+
 	BIO_set_cipher(
 		decrypt, EVP_aes_128_cfb8(), c->shared_secret, c->shared_secret, 0);
-	BIO_push(decrypt, socket_read);
 
-	c->aes_decrypt_stream = decrypt;
+	c->inbound_stream = BIO_push(decrypt, c->inbound_stream);
 
-	BIO *socket_write = BIO_new_fp(c->socket, BIO_NOCLOSE);
 	BIO *encrypt = BIO_new(BIO_f_cipher());
+
 	BIO_set_cipher(
 		encrypt, EVP_aes_128_cfb8(), c->shared_secret, c->shared_secret, 1);
-	BIO_push(encrypt, socket_write);
 
-	c->aes_encrypt_stream = encrypt;
+	c->outbound_stream = BIO_push(encrypt, c->outbound_stream);
 
 	c->encryption_enabled = true;
 }
 
 void free_connection_aes(struct connection *c) {
-	BIO_free_all(c->aes_decrypt_stream);
-	BIO_free_all(c->aes_encrypt_stream);
+	BIO_free_all(c->inbound_stream);
+	BIO_free_all(c->outbound_stream);
 }
 
 void generate_random_bytes(unsigned char *buf, size_t len) {
