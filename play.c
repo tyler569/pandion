@@ -1,5 +1,7 @@
 #include "minecraft.h"
+#include <math.h>
 
+// protocol 758
 enum play_inbound_packet_id {
 	client_settings = 0x05,
 	player_position = 0x11,
@@ -17,6 +19,8 @@ enum play_outbound_packet_id {
 	update_view_position = 0x49,
 };
 
+pn_error_t process_keepalive_status(struct connection *c);
+
 pn_error_t handle_client_settings(struct connection *c);
 pn_error_t handle_position(struct connection *c);
 pn_error_t handle_position_and_rotation(struct connection *c);
@@ -30,35 +34,43 @@ pn_error_t send_teleport(struct connection *c);
 pn_error_t send_update_view_position(struct connection *c);
 
 pn_error_t handle_play_state(struct connection *c) {
+	pn_error_t rc;
+
+	rc = process_keepalive_status(c);
+	if (rc != pn_ok)
+		return rc;
+
 	long packet_type = read_varint(c);
-
-	time_t now = time(nullptr);
-	if (now - c->last_keepalive_sent > 20) {
-		c->last_keepalive_sent = now;
-		send_keep_alive(c);
-	}
-
-	if (now - c->last_keepalive_received > 30) {
-		printf("client timed out\n");
-		return pn_timeout;
-	}
 
 	printf("play packet type=%ld\n", packet_type);
 
 	switch (packet_type) {
 	case client_settings:
-		return handle_client_settings(c);
+		rc = handle_client_settings(c);
+		break;
 	case player_position:
-		return handle_position(c);
+		rc = handle_position(c);
+		break;
 	case player_position_and_rotation:
-		return handle_position_and_rotation(c);
+		rc = handle_position_and_rotation(c);
+		break;
 	case player_rotation:
-		return handle_rotation(c);
+		rc = handle_rotation(c);
+		break;
 	case keepalive_client:
-		return handle_keepalive(c);
+		rc = handle_keepalive(c);
+		break;
 	default:
-		return pn_unhandled_packet;
+		rc = pn_unhandled_packet;
 	}
+
+	if (rc == pn_unhandled_packet) {
+		printf("  unhandled packet\n");
+	} else if (rc != pn_ok) {
+		return rc;
+	}
+
+	return pn_ok;
 }
 
 pn_error_t handle_client_settings(struct connection *c) {
@@ -71,7 +83,7 @@ pn_error_t handle_client_settings(struct connection *c) {
 	char enable_text_filtering = read_byte(c);
 	char allow_server_listings = read_byte(c);
 
-	printf("  locale=\"%.*s\"\n", (int)locale.len, locale.data);
+	printf("  locale=\"%.*s\"\n", locale.len, locale.data);
 	printf("  view_distance=%d\n", view_distance);
 	printf("  chat_mode=%d\n", chat_mode);
 	printf("  chat_colors=%d\n", chat_colors);
@@ -98,13 +110,17 @@ static void read_on_ground(struct connection *c) {
 	c->on_ground = read_byte(c);
 }
 
+int chunk_index(double position) { return (int)floor(position / 16); }
+
 pn_error_t handle_any_movement(struct connection *c) {
 	pn_error_t rc;
 
-	if ((int)c->x / 16 != c->chunk_x || (int)c->z / 16 != c->chunk_z) {
-		c->chunk_x = (int)c->x / 16;
-		c->chunk_z = (int)c->z / 16;
+	if (chunk_index(c->x) != c->chunk_x || chunk_index(c->z) != c->chunk_z) {
+		c->chunk_x = chunk_index(c->x);
+		c->chunk_z = chunk_index(c->z);
+
 		rc = send_update_view_position(c);
+
 		if (rc != pn_ok)
 			return rc;
 	}
@@ -261,4 +277,21 @@ pn_error_t send_update_view_position(struct connection *c) {
 	write_varint(c, c->chunk_z);
 
 	return send_outbound_packet(c);
+}
+
+pn_error_t process_keepalive_status(struct connection *c) {
+	time_t now = time(nullptr);
+
+	if (now - c->last_keepalive_sent > 20) {
+		c->last_keepalive_sent = now;
+
+		pn_error_t rc = send_keep_alive(c);
+		if (rc != pn_ok)
+			return rc;
+	}
+
+	if (now - c->last_keepalive_received > 30)
+		return pn_timeout;
+
+	return pn_ok;
 }

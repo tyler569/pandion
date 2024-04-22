@@ -101,7 +101,7 @@ void handle_client_connection(struct server *, int client_socket_fd);
 
 struct t_string {
 	char *data;
-	size_t len;
+	int len;
 };
 
 pn_error_t decrypt_data_rsa(struct connection *, unsigned char *out,
@@ -124,7 +124,7 @@ void write_varint_to_stream(FILE *stream, int);
 int read_varint_from_bio(BIO *bio);
 void write_varint_to_bio(BIO *bio, int);
 
-int read_varint(struct connection *c);
+int read_varint(struct connection *);
 struct t_string read_string(struct connection *);
 char read_byte(struct connection *);
 short read_short(struct connection *);
@@ -134,7 +134,7 @@ float read_float(struct connection *);
 double read_double(struct connection *);
 void read_uuid(struct connection *, unsigned char *uuid);
 
-void write_varint(struct connection *c, int);
+void write_varint(struct connection *, int);
 void write_c_string(struct connection *, const char *);
 void write_data_len(struct connection *, const void *, size_t len);
 void write_string(struct connection *, struct t_string);
