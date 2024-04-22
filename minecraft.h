@@ -46,20 +46,28 @@ void init_server_crypto(struct server *s);
 void init_server_state(struct server *s);
 
 struct chunk_section {
-	int y;
+	int bits_per_block;
 
-	void *blocks;
-	void *palette;
+	short *palette;
+	int palette_len;
+	int palette_size;
+
+	int filled_blocks;
+
+	long *data;
+	int data_len;
 };
 
 struct chunk {
 	int x, z;
 
-	struct chunk_section sections[16];
-};
+	short motion_blocking[256];
+	struct nbt_tag *motion_blocking_nbt_cache;
 
-struct world {
-	struct rbtree chunk_cache;
+	struct chunk_section sections[24];
+
+	void *data_packet_cache;
+	size_t data_packet_cache_len;
 };
 
 struct connection {
@@ -118,6 +126,9 @@ void end_inbound_packet(struct connection *);
 void new_outbound_packet(struct connection *, long id);
 pn_error_t send_outbound_packet(struct connection *);
 void flush_connection_socket(struct connection *);
+
+struct chunk new_chunk(int x, int z);
+pn_error_t write_chunk_data_to_packet(struct connection *c, struct chunk *k);
 
 int read_varint_from_stream(FILE *stream);
 void write_varint_to_stream(FILE *stream, int);

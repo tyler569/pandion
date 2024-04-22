@@ -183,7 +183,7 @@ pn_error_t send_join_game(struct connection *c) {
 	return send_outbound_packet(c);
 }
 
-pn_error_t send_chunk_data(struct connection *c, int x, int z);
+pn_error_t send_chunk_data(struct connection *c, struct chunk *k);
 
 pn_error_t do_player_join_game(struct connection *c) {
 	pn_error_t rc;
@@ -213,9 +213,18 @@ pn_error_t do_player_join_game(struct connection *c) {
 	if (rc != pn_ok)
 		return rc;
 
+	static struct chunk k;
+	static bool init = false;
+	if (!init) {
+		k = new_chunk(0, 0);
+	}
+
 	for (int x = -3; x <= 3; x++) {
 		for (int z = -3; z <= 3; z++) {
-			rc = send_chunk_data(c, x, z);
+			k.x = x;
+			k.z = z;
+
+			rc = send_chunk_data(c, &k);
 			if (rc != pn_ok)
 				return rc;
 		}
@@ -246,11 +255,10 @@ pn_error_t send_keep_alive(struct connection *c) {
 	return send_outbound_packet(c);
 }
 
-pn_error_t send_chunk_data(struct connection *c, int x, int z) {
+pn_error_t send_chunk_data(struct connection *c, struct chunk *k) {
 	new_outbound_packet(c, chunk_data);
 
-	pn_error_t write_chunk_data(struct connection * c, struct chunk * k);
-	write_chunk_data(c, &(struct chunk) { .x = x, .z = z });
+	write_chunk_data_to_packet(c, k);
 
 	return send_outbound_packet(c);
 }

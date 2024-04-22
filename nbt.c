@@ -47,7 +47,7 @@ struct nbt_tag *nbt_new_double(double value) {
 	return tag;
 }
 
-struct nbt_tag *nbt_new_byte_array(uint32_t len, char *data) {
+struct nbt_tag *nbt_new_byte_array(int len, char *data) {
 	struct nbt_tag *tag = nbt_new_tag(NBT_BYTE_ARRAY);
 	tag->byte_array.len = len;
 	tag->byte_array.data = malloc(len);
@@ -74,7 +74,7 @@ struct nbt_tag *nbt_new_compound() {
 	return tag;
 }
 
-struct nbt_tag *nbt_new_int_array(int *data, uint32_t len) {
+struct nbt_tag *nbt_new_int_array(int *data, int len) {
 	struct nbt_tag *tag = nbt_new_tag(NBT_INT_ARRAY);
 	tag->int_array.len = len;
 	tag->int_array.data = malloc(len * sizeof(int));
@@ -82,7 +82,7 @@ struct nbt_tag *nbt_new_int_array(int *data, uint32_t len) {
 	return tag;
 }
 
-struct nbt_tag *nbt_new_long_array(long *data, uint32_t len) {
+struct nbt_tag *nbt_new_long_array(long *data, int len) {
 	struct nbt_tag *tag = nbt_new_tag(NBT_LONG_ARRAY);
 	tag->long_array.len = len;
 	tag->long_array.data = malloc(len * sizeof(long));
@@ -138,8 +138,7 @@ void nbt_add_double_to_list(struct nbt_tag *list, double value) {
 	nbt_add_to_list(list, nbt_new_double(value));
 }
 
-void nbt_add_byte_array_to_list(
-	struct nbt_tag *list, uint32_t len, char *data) {
+void nbt_add_byte_array_to_list(struct nbt_tag *list, int len, char *data) {
 	assert(list->type == NBT_LIST);
 	assert(list->list.type == NBT_BYTE_ARRAY);
 	nbt_add_to_list(list, nbt_new_byte_array(len, data));
@@ -151,14 +150,13 @@ void nbt_add_string_to_list(struct nbt_tag *list, const char *string) {
 	nbt_add_to_list(list, nbt_new_string(string));
 }
 
-void nbt_add_int_array_to_list(struct nbt_tag *list, uint32_t len, int *data) {
+void nbt_add_int_array_to_list(struct nbt_tag *list, int len, int *data) {
 	assert(list->type == NBT_LIST);
 	assert(list->list.type == NBT_INT_ARRAY);
 	nbt_add_to_list(list, nbt_new_int_array(data, len));
 }
 
-void nbt_add_long_array_to_list(
-	struct nbt_tag *list, uint32_t len, long *data) {
+void nbt_add_long_array_to_list(struct nbt_tag *list, int len, long *data) {
 	assert(list->type == NBT_LIST);
 	assert(list->list.type == NBT_LONG_ARRAY);
 	nbt_add_to_list(list, nbt_new_long_array(data, len));
@@ -214,7 +212,7 @@ void nbt_add_double_to_compound(
 }
 
 void nbt_add_byte_array_to_compound(
-	struct nbt_tag *compound, const char *name, uint32_t len, char *data) {
+	struct nbt_tag *compound, const char *name, int len, char *data) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_byte_array(len, data));
 }
@@ -226,13 +224,13 @@ void nbt_add_string_to_compound(
 }
 
 void nbt_add_int_array_to_compound(
-	struct nbt_tag *compound, const char *name, uint32_t len, int *data) {
+	struct nbt_tag *compound, const char *name, int len, int *data) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_int_array(data, len));
 }
 
 void nbt_add_long_array_to_compound(
-	struct nbt_tag *compound, const char *name, uint32_t len, long *data) {
+	struct nbt_tag *compound, const char *name, int len, long *data) {
 	assert(compound->type == NBT_COMPOUND);
 	nbt_add_to_compound(compound, name, nbt_new_long_array(data, len));
 }

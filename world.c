@@ -1,128 +1,297 @@
 #include "minecraft.h"
 #include <assert.h>
 
-pn_error_t write_chunk_data(struct connection *c, struct chunk *k) {
-	static struct nbt_tag *heightmap = nullptr;
+static int cs_correct_bits_per_block(struct chunk_section *cs) {
+	assert(cs->palette_len >= 0);
 
-	if (!heightmap) {
-		int c = 0; // do not use the connection in this block
+	switch (cs->palette_len) {
+	case 0 ... 1:
+		return 0;
+	case 2 ... 16:
+		return 4;
+	case 17 ... 32:
+		return 5;
+	case 33 ... 64:
+		return 6;
+	case 65 ... 128:
+		return 7;
+	case 129 ... 256:
+		return 8;
+	default:
+		return 16;
+	}
+}
 
-		heightmap = nbt_new_compound();
+static long cs_block_mask(int bits_per_block) {
+	return (1l << bits_per_block) - 1;
+}
 
-		long *motion_blocking_array = calloc(37, sizeof(long));
+static int cs_get(struct chunk_section *cs, int index) {
+	if (cs->bits_per_block == 0 && cs->palette == nullptr) {
+		return 0;
+	}
+
+	if (cs->bits_per_block == 0) {
+		assert(cs->palette_len == 1);
+
+		return cs->palette[0];
+	}
+
+	int blocks_per_long = 64 / cs->bits_per_block;
+
+	int long_index = index / blocks_per_long;
+	int block_index = index % blocks_per_long;
+
+	assert(long_index < cs->data_len);
+
+	long l = cs->data[long_index];
+	l >>= block_index * cs->bits_per_block;
+	return (short)(l & cs_block_mask(cs->bits_per_block));
+}
+
+static void cs_set_raw(struct chunk_section *cs, int index, int id) {
+	int blocks_per_long = 64 / cs->bits_per_block;
+
+	int long_index = index / blocks_per_long;
+	int block_index = index % blocks_per_long;
+
+	assert(long_index < cs->data_len);
+
+	long mask = cs_block_mask(cs->bits_per_block);
+
+	cs->data[long_index] &= ~(mask << block_index * cs->bits_per_block);
+	cs->data[long_index] |= (long)id << block_index * cs->bits_per_block;
+}
+
+static void cs_set(struct chunk_section *cs, int index, int id) {
+	int was = cs_get(cs, index);
+	if (id && was == 0) {
+		cs->filled_blocks++;
+	} else if (id == 0 && was) {
+		cs->filled_blocks--;
+	}
+
+	cs_set_raw(cs, index, id);
+}
+
+void cs_relayout_block_data(struct chunk_section *cs) {
+	int new_bits_per_block = cs_correct_bits_per_block(cs);
+
+	int new_blocks_per_long = 64 / new_bits_per_block;
+	int new_data_len = 16 * 16 * 16 / new_blocks_per_long;
+
+	long *new_data = calloc(new_data_len, sizeof(long));
+
+	struct chunk_section new_cs = { .bits_per_block = new_bits_per_block,
+		.palette = cs->palette,
+		.palette_len = cs->palette_len,
+		.palette_size = cs->palette_size,
+		.filled_blocks = cs->filled_blocks,
+		.data = new_data,
+		.data_len = new_data_len };
+
+	for (int i = 0; i < 16 * 16 * 16; i++) {
+		int block = cs_get(cs, i);
+		cs_set_raw(&new_cs, i, block);
+	}
+
+	free(cs->data);
+	*cs = new_cs;
+}
+
+int cs_expand_palette(struct chunk_section *cs, short block) {
+	if (cs->palette_len == 0) {
+		cs->palette = calloc(16, sizeof(short));
+		cs->palette_size = 16;
+		cs->palette_len = 2;
+
+		cs->palette[0] = 0;
+		cs->palette[1] = block;
+	} else if (cs->palette_len == cs->palette_size) {
+		cs->palette_size *= 2;
+		cs->palette = realloc(cs->palette, cs->palette_size * sizeof(short));
+
+		cs->palette[cs->palette_len++] = block;
+	}
+
+	if (cs->bits_per_block != cs_correct_bits_per_block(cs)) {
+		cs_relayout_block_data(cs);
+	}
+
+	return cs->palette_len - 1;
+}
+
+int cs_palette_id(struct chunk_section *cs, short block) {
+	for (int i = 0; i < cs->palette_len; i++) {
+		if (cs->palette[i] == block) {
+			return i;
+		}
+	}
+
+	return cs_expand_palette(cs, block);
+}
+
+void cs_set_block(struct chunk_section *cs, int x, int y, int z, short block) {
+	int index = y * 16 * 16 + z * 16 + x;
+
+	int paletted_id = cs_palette_id(cs, block);
+
+	cs_set(cs, index, paletted_id);
+}
+
+short cs_get_block(struct chunk_section *cs, int x, int y, int z) {
+	int index = y * 16 * 16 + z * 16 + x;
+
+	int paletted_id = cs_get(cs, index);
+
+	return cs->palette[paletted_id];
+}
+
+void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
+	short block_count = htons(cs->filled_blocks);
+	fwrite(&block_count, 1, sizeof(block_count), stream);
+
+	write_varint_to_stream(stream, cs->bits_per_block);
+
+	// single-valued palette in the special all-air case
+	if (cs->bits_per_block == 0 && cs->palette == nullptr) {
+		write_varint_to_stream(stream, 0);
+	}
+
+	// single-valued palette in the general case
+	else if (cs->bits_per_block == 0) {
+		assert(cs->palette_len == 1);
+		write_varint_to_stream(stream, cs->palette[0]);
+	}
+
+	// multi-valued palette
+	else if (cs->bits_per_block < 16) {
+		write_varint_to_stream(stream, cs->palette_len);
+
+		for (int i = 0; i < cs->palette_len; i++) {
+			write_varint_to_stream(stream, cs->palette[i]);
+		}
+	}
+
+	// direct map, no palette
+	else { }
+
+	write_varint_to_stream(stream, cs->data_len);
+
+	for (int i = 0; i < cs->data_len; i++) {
+		unsigned long be = __builtin_bswap64(cs->data[i]);
+		fwrite(&be, 1, sizeof(be), stream);
+	}
+
+	write_varint_to_stream(stream, 0); // bits per biome
+
+	write_varint_to_stream(stream, 0); // biome palette length
+
+	write_varint_to_stream(stream, 0); // biome data array length
+}
+
+struct chunk_section uniblock_cs(short block_state) {
+	struct chunk_section r = {
+		.bits_per_block = 0,
+		.palette = calloc(16, sizeof(short)),
+		.palette_len = 1,
+		.palette_size = 16,
+		.filled_blocks = block_state != 0 ? 4096 : 0,
+		.data = nullptr,
+		.data_len = 0,
+	};
+
+	r.palette[0] = block_state;
+
+	return r;
+}
+
+struct chunk_section stone_cs() { return uniblock_cs(1); }
+
+struct chunk new_chunk(int x, int z) {
+	struct chunk r = {
+		.x = x,
+		.z = z,
+		.motion_blocking = { 0 },
+		.sections = { stone_cs() },
+	};
+
+	return r;
+}
+
+struct chunk_section *chunk_get_section(struct chunk *c, int y) {
+	int section_index = (y + 64) / 16;
+
+	assert(section_index >= 0 && section_index < 24);
+
+	return &c->sections[section_index];
+}
+
+int chunk_cs_y_index(int y) {
+	int ny = y % 16;
+	if (ny < 0) {
+		ny += 16;
+	}
+	return ny;
+}
+
+void chunk_set(struct chunk *c, int x, int y, int z, short block) {
+	struct chunk_section *cs = chunk_get_section(c, y);
+
+	cs_set_block(cs, x, chunk_cs_y_index(y), z, block);
+
+	free(c->data_packet_cache);
+	c->data_packet_cache = nullptr;
+	c->data_packet_cache_len = 0;
+
+	// TODO: update motion_blocking if we're the highest block in the column
+}
+
+short chunk_get(struct chunk *c, int x, int y, int z) {
+	struct chunk_section *cs = chunk_get_section(c, y);
+
+	return cs_get_block(cs, x, chunk_cs_y_index(y), z);
+}
+
+pn_error_t write_chunk_data_to_packet(struct connection *c, struct chunk *k) {
+	write_int(c, k->x);
+	write_int(c, k->z);
+
+	if (!k->motion_blocking_nbt_cache) {
+		struct nbt_tag *mb_compound = nbt_new_compound();
+
+		long *mb_array = calloc(37, sizeof(long));
+
+		struct nbt_tag *mb_tag = nbt_new_long_array(mb_array, 37);
 
 		for (int i = 0; i < 256; i++) {
 			int l_index = i / 7;
 			int b_index = (i % 7) * 9;
 
-			assert(l_index < 37);
-
-			motion_blocking_array[l_index] |= 1l << b_index;
+			mb_array[l_index] |= (long)k->motion_blocking[i] << b_index;
 		}
 
-		printf("motion_blocking_array: ");
-		for (int i = 0; i < 37; i++) {
-			printf("[%i] = %#018lx\n", i, motion_blocking_array[i]);
-		}
-		printf("\n");
+		nbt_add_to_compound(mb_compound, "MOTION_BLOCKING", mb_tag);
 
-		struct nbt_tag *motion_blocking
-			= nbt_new_long_array(motion_blocking_array, 37);
+		free(mb_array);
 
-		nbt_add_to_compound(heightmap, "MOTION_BLOCKING", motion_blocking);
-
-		FILE *test_file = fopen("heightmap.nbt", "wb");
-		nbt_write_to_stream(heightmap, test_file);
-		fclose(test_file);
+		k->motion_blocking_nbt_cache = mb_compound;
 	}
 
-	write_int(c, k->x);
-	write_int(c, k->z);
-	write_nbt(c, heightmap);
+	write_nbt(c, k->motion_blocking_nbt_cache);
 
-	static char *data = nullptr;
-	static size_t len = 0;
+	if (!k->data_packet_cache) {
+		FILE *stream = open_memstream(
+			(char **)&k->data_packet_cache, &k->data_packet_cache_len);
 
-	if (!data) {
-		int c = 0; // do not use the connection in this block
-
-		FILE *stream = open_memstream(&data, &len);
-
-		// first chunk section
-		{
-			short block_count = htons(16 * 16 * 16);
-			fwrite(&block_count, 1, sizeof(block_count), stream);
-
-			// bits per block
-			write_varint_to_stream(stream, 0);
-
-			// palette
-			write_varint_to_stream(stream, 1);
-
-			// data array length
-			write_varint_to_stream(stream, 0);
-
-			// // length of the palette
-			// write_varint_to_stream(stream, 2);
-
-			// // palette
-			// write_varint_to_stream(stream, 0);
-			// write_varint_to_stream(stream, 1);
-
-			// // data array length
-			// write_varint_to_stream(stream, 64);
-
-			// long full = -1;
-			// long empty = 0;
-
-			// // bottom layer
-			// for (int i = 0; i < 4; i++)
-			// 	fwrite(&full, 1, sizeof(full), stream);
-
-			// // rest of the chunk section
-			// for (int i = 4; i < 64; i++)
-			// 	fwrite(&empty, 1, sizeof(empty), stream);
-
-			// bits per biome
-			write_varint_to_stream(stream, 0);
-
-			// biome palette
-			write_varint_to_stream(stream, 0);
-
-			// biome data array length
-			write_varint_to_stream(stream, 0);
-		}
-
-		// chunk sections 1-23
-		for (int i = 1; i < 24; i++) {
-			short block_count = 0;
-			fwrite(&block_count, 1, sizeof(block_count), stream);
-
-			// bits per block
-			write_varint_to_stream(stream, 0);
-
-			// palette
-			write_varint_to_stream(stream, 0);
-
-			// data array length
-			write_varint_to_stream(stream, 0);
-
-			// bits per biome
-			write_varint_to_stream(stream, 0);
-
-			// biome palette
-			write_varint_to_stream(stream, 0);
-
-			// biome data array length
-			write_varint_to_stream(stream, 0);
+		for (int i = 0; i < 24; i++) {
+			cs_serialize_to_stream(&k->sections[i], stream);
 		}
 
 		fclose(stream);
-
-		hexdump(data, len);
 	}
 
-	write_data_len(c, data, len);
+	write_data_len(c, k->data_packet_cache, k->data_packet_cache_len);
 
 	write_varint(c, 0); // block entities count
 
