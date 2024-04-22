@@ -104,8 +104,9 @@ struct t_string {
 pn_error_t decrypt_data_rsa(struct connection *, unsigned char *out,
 	size_t out_len, struct t_string *in);
 
+void init_connection_streams(struct connection *);
 void init_connection_aes(struct connection *);
-void free_connection_bios(struct connection *);
+void close_connection_streams(struct connection *);
 
 void generate_random_bytes(unsigned char *buf, size_t len);
 

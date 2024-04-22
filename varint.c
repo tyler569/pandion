@@ -34,8 +34,9 @@ long read_varint_from_bio(BIO *bio) {
 	return value;
 }
 
-void write_varint_to_stream(FILE *stream, long value) {
+void write_varint_to_stream(FILE *stream, long v) {
 	unsigned char byte;
+	unsigned long value = (unsigned long)v;
 	do {
 		byte = value & 0x7F;
 		value >>= 7;
@@ -46,8 +47,9 @@ void write_varint_to_stream(FILE *stream, long value) {
 	} while (value);
 }
 
-void write_varint_to_bio(BIO *bio, long value) {
+void write_varint_to_bio(BIO *bio, long v) {
 	unsigned char byte;
+	unsigned long value = (unsigned long)v;
 	do {
 		byte = value & 0x7F;
 		value >>= 7;

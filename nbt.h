@@ -34,7 +34,7 @@ struct nbt_tag {
 		float float_;
 		double double_;
 		struct {
-			uint32_t len;
+			int len;
 			char *data;
 		} byte_array;
 		const char *string;
@@ -44,11 +44,11 @@ struct nbt_tag {
 		} list;
 		nbt_list compound;
 		struct {
-			uint32_t len;
+			int len;
 			int *data;
 		} int_array;
 		struct {
-			uint32_t len;
+			int len;
 			long *data;
 		} long_array;
 	};

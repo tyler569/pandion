@@ -12,6 +12,7 @@ enum play_outbound_packet_id {
 	join_game = 0x26,
 	plugin_message_server = 0x18,
 	keepalive_server = 0x21,
+	chunk_data = 0x22,
 };
 
 pn_error_t handle_client_settings(struct connection *c);
@@ -148,6 +149,8 @@ pn_error_t send_join_game(struct connection *c) {
 	return send_outbound_packet(c);
 }
 
+pn_error_t send_chunk_data(struct connection *c, int x, int z);
+
 pn_error_t do_player_join_game(struct connection *c) {
 	pn_error_t rc;
 
@@ -158,6 +161,14 @@ pn_error_t do_player_join_game(struct connection *c) {
 	rc = send_brand_plugin_message(c);
 	if (rc != pn_ok)
 		return rc;
+
+	for (int x = -3; x <= 3; x++) {
+		for (int z = -3; z <= 3; z++) {
+			rc = send_chunk_data(c, x, z);
+			if (rc != pn_ok)
+				return rc;
+		}
+	}
 
 	c->last_keepalive_received = time(nullptr);
 
@@ -180,6 +191,15 @@ pn_error_t send_keep_alive(struct connection *c) {
 	new_outbound_packet(c, keepalive_server);
 
 	write_long(c, c->last_keepalive_sent);
+
+	return send_outbound_packet(c);
+}
+
+pn_error_t send_chunk_data(struct connection *c, int x, int z) {
+	new_outbound_packet(c, chunk_data);
+
+	pn_error_t write_chunk_data(struct connection * c, struct chunk * k);
+	write_chunk_data(c, &(struct chunk) { .x = x, .z = z });
 
 	return send_outbound_packet(c);
 }

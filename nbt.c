@@ -398,10 +398,10 @@ void nbt_write_tag_data_to_stream(struct nbt_tag *tag, FILE *stream) {
 	}
 	case NBT_BYTE_ARRAY:
 		nbt_write_be_int_to_stream(tag->byte_array.len, stream);
-		fwrite(tag->byte_array.data, sizeof(char), tag->byte_array.len, stream);
+		fwrite(tag->byte_array.data, 1, tag->byte_array.len, stream);
 		break;
 	case NBT_STRING: {
-		uint16_t len = strlen(tag->string);
+		short len = (short)strlen(tag->string);
 		nbt_write_be_short_to_stream(len, stream);
 		fwrite(tag->string, sizeof(char), len, stream);
 		break;
@@ -419,11 +419,15 @@ void nbt_write_tag_data_to_stream(struct nbt_tag *tag, FILE *stream) {
 		break;
 	case NBT_INT_ARRAY:
 		nbt_write_be_int_to_stream(tag->int_array.len, stream);
-		fwrite(tag->int_array.data, sizeof(int), tag->int_array.len, stream);
+		for (int i = 0; i < tag->int_array.len; i++) {
+			nbt_write_be_int_to_stream(tag->int_array.data[i], stream);
+		}
 		break;
 	case NBT_LONG_ARRAY:
 		nbt_write_be_int_to_stream(tag->long_array.len, stream);
-		fwrite(tag->long_array.data, sizeof(long), tag->long_array.len, stream);
+		for (int i = 0; i < tag->long_array.len; i++) {
+			nbt_write_be_long_to_stream(tag->long_array.data[i], stream);
+		}
 		break;
 	case NBT_END:
 		break;

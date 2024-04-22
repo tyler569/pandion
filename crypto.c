@@ -62,6 +62,11 @@ pn_error_t decrypt_data_rsa(struct connection *c, unsigned char *out,
 	return pn_ok;
 }
 
+void init_connection_streams(struct connection *c) {
+	c->inbound_stream = BIO_new_fd(c->socket_fd, BIO_NOCLOSE);
+	c->outbound_stream = BIO_new_fd(c->socket_fd, BIO_CLOSE);
+}
+
 void init_connection_aes(struct connection *c) {
 	BIO *decrypt = BIO_new(BIO_f_cipher());
 
@@ -80,7 +85,7 @@ void init_connection_aes(struct connection *c) {
 	c->encryption_enabled = true;
 }
 
-void free_connection_bios(struct connection *c) {
+void close_connection_streams(struct connection *c) {
 	BIO_free_all(c->inbound_stream);
 	BIO_free_all(c->outbound_stream);
 }

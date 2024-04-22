@@ -8,11 +8,11 @@ void handle_client_connection(struct server *server, int socket_fd) {
 	struct connection connection = {
 		.server = server,
 		.socket_fd = socket_fd,
-		.inbound_stream = BIO_new_fd(socket_fd, BIO_NOCLOSE),
-		.outbound_stream = BIO_new_fd(socket_fd, BIO_NOCLOSE),
 		.state = HANDSHAKE,
 	};
 	struct connection *c = &connection;
+
+	init_connection_streams(c);
 
 	while (true) {
 		pn_error_t error;
@@ -42,16 +42,16 @@ void handle_client_connection(struct server *server, int socket_fd) {
 		end_inbound_packet(c);
 
 		if (error == pn_unhandled_packet) {
-			printf("unhandled packet\n");
+			printf("  unhandled packet\n");
 		} else if (error != pn_ok) {
-			printf("pn_error: %d, closing connection\n", error);
+			printf("  pn_error: %d, closing connection\n", error);
 			goto close_connection;
 		}
 	}
 
 close_connection:
-	free_connection_bios(c);
-	close(c->socket_fd);
+	close_connection_streams(c);
+	// close(c->socket_fd);
 }
 
 pn_error_t read_inbound_packet_bio(struct connection *c) {
