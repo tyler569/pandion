@@ -13,6 +13,8 @@ enum play_outbound_packet_id {
 	plugin_message_server = 0x18,
 	keepalive_server = 0x21,
 	chunk_data = 0x22,
+	teleport = 0x38,
+	update_view_position = 0x49,
 };
 
 pn_error_t handle_client_settings(struct connection *c);
@@ -24,6 +26,8 @@ pn_error_t handle_keepalive(struct connection *c);
 pn_error_t send_join_game(struct connection *c);
 pn_error_t send_plugin_message_server(struct connection *c);
 pn_error_t send_keep_alive(struct connection *c);
+pn_error_t send_teleport(struct connection *c);
+pn_error_t send_update_view_position(struct connection *c);
 
 pn_error_t handle_play_state(struct connection *c) {
 	long packet_type = read_varint(c);
@@ -162,6 +166,21 @@ pn_error_t do_player_join_game(struct connection *c) {
 	if (rc != pn_ok)
 		return rc;
 
+	c->x = 0.5;
+	c->y = 64;
+	c->z = 0.5;
+	c->yaw = 0;
+	c->pitch = 0;
+	c->on_ground = false;
+
+	rc = send_teleport(c);
+	if (rc != pn_ok)
+		return rc;
+
+	rc = send_update_view_position(c);
+	if (rc != pn_ok)
+		return rc;
+
 	for (int x = -3; x <= 3; x++) {
 		for (int z = -3; z <= 3; z++) {
 			rc = send_chunk_data(c, x, z);
@@ -200,6 +219,30 @@ pn_error_t send_chunk_data(struct connection *c, int x, int z) {
 
 	pn_error_t write_chunk_data(struct connection * c, struct chunk * k);
 	write_chunk_data(c, &(struct chunk) { .x = x, .z = z });
+
+	return send_outbound_packet(c);
+}
+
+pn_error_t send_teleport(struct connection *c) {
+	new_outbound_packet(c, teleport);
+
+	write_double(c, c->x);
+	write_double(c, c->y);
+	write_double(c, c->z);
+	write_float(c, c->yaw);
+	write_float(c, c->pitch);
+	write_byte(c, 0); // flags
+	write_varint(c, ++c->last_teleport_id);
+	write_byte(c, 0); // dismount vehicle
+
+	return send_outbound_packet(c);
+}
+
+pn_error_t send_update_view_position(struct connection *c) {
+	new_outbound_packet(c, update_view_position);
+
+	write_varint(c, (int)c->x / 16);
+	write_varint(c, (int)c->z / 16);
 
 	return send_outbound_packet(c);
 }

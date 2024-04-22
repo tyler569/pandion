@@ -50,32 +50,38 @@ pn_error_t write_chunk_data(struct connection *c, struct chunk *k) {
 
 		// first chunk section
 		{
-			short block_count = htons(16 * 16);
+			short block_count = htons(16 * 16 * 16);
 			fwrite(&block_count, 1, sizeof(block_count), stream);
 
 			// bits per block
-			write_varint_to_stream(stream, 1);
-
-			// length of the palette
-			write_varint_to_stream(stream, 2);
+			write_varint_to_stream(stream, 0);
 
 			// palette
-			write_varint_to_stream(stream, 0);
 			write_varint_to_stream(stream, 1);
 
 			// data array length
-			write_varint_to_stream(stream, 64);
+			write_varint_to_stream(stream, 0);
 
-			long full = -1;
-			long empty = 0;
+			// // length of the palette
+			// write_varint_to_stream(stream, 2);
 
-			// bottom layer
-			for (int i = 0; i < 4; i++)
-				fwrite(&full, 1, sizeof(full), stream);
+			// // palette
+			// write_varint_to_stream(stream, 0);
+			// write_varint_to_stream(stream, 1);
 
-			// rest of the chunk section
-			for (int i = 4; i < 64; i++)
-				fwrite(&empty, 1, sizeof(empty), stream);
+			// // data array length
+			// write_varint_to_stream(stream, 64);
+
+			// long full = -1;
+			// long empty = 0;
+
+			// // bottom layer
+			// for (int i = 0; i < 4; i++)
+			// 	fwrite(&full, 1, sizeof(full), stream);
+
+			// // rest of the chunk section
+			// for (int i = 4; i < 64; i++)
+			// 	fwrite(&empty, 1, sizeof(empty), stream);
 
 			// bits per biome
 			write_varint_to_stream(stream, 0);

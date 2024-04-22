@@ -78,6 +78,8 @@ struct connection {
 	time_t last_keepalive_sent;
 	time_t last_keepalive_received;
 
+	int last_teleport_id;
+
 	unsigned char verify_token[4];
 	unsigned char shared_secret[16];
 
