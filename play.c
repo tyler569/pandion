@@ -98,11 +98,25 @@ static void read_on_ground(struct connection *c) {
 	c->on_ground = read_byte(c);
 }
 
+pn_error_t handle_any_movement(struct connection *c) {
+	pn_error_t rc;
+
+	if ((int)c->x / 16 != c->chunk_x || (int)c->z / 16 != c->chunk_z) {
+		c->chunk_x = (int)c->x / 16;
+		c->chunk_z = (int)c->z / 16;
+		rc = send_update_view_position(c);
+		if (rc != pn_ok)
+			return rc;
+	}
+
+	return pn_ok;
+}
+
 pn_error_t handle_position(struct connection *c) {
 	read_xyz(c);
 	read_on_ground(c);
 
-	return pn_ok;
+	return handle_any_movement(c);
 }
 
 pn_error_t handle_position_and_rotation(struct connection *c) {
@@ -110,14 +124,14 @@ pn_error_t handle_position_and_rotation(struct connection *c) {
 	read_rotation(c);
 	read_on_ground(c);
 
-	return pn_ok;
+	return handle_any_movement(c);
 }
 
 pn_error_t handle_rotation(struct connection *c) {
 	read_rotation(c);
 	read_on_ground(c);
 
-	return pn_ok;
+	return handle_any_movement(c);
 }
 
 pn_error_t send_brand_plugin_message(struct connection *c) {
@@ -166,6 +180,8 @@ pn_error_t do_player_join_game(struct connection *c) {
 	if (rc != pn_ok)
 		return rc;
 
+	c->chunk_x = 0;
+	c->chunk_z = 0;
 	c->x = 0.5;
 	c->y = 64;
 	c->z = 0.5;
@@ -241,8 +257,8 @@ pn_error_t send_teleport(struct connection *c) {
 pn_error_t send_update_view_position(struct connection *c) {
 	new_outbound_packet(c, update_view_position);
 
-	write_varint(c, (int)c->x / 16);
-	write_varint(c, (int)c->z / 16);
+	write_varint(c, c->chunk_x);
+	write_varint(c, c->chunk_z);
 
 	return send_outbound_packet(c);
 }

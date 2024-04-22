@@ -91,6 +91,7 @@ struct connection {
 
 	int entity_id;
 
+	int chunk_x, chunk_z;
 	double x, y, z;
 	float yaw, pitch;
 	bool on_ground;
@@ -118,13 +119,12 @@ void new_outbound_packet(struct connection *, long id);
 pn_error_t send_outbound_packet(struct connection *);
 void flush_connection_socket(struct connection *);
 
-long read_varint_from_stream(FILE *);
-void write_varint_to_stream(FILE *, long);
-long read_varint_from_buffer(void *data, size_t len);
-long read_varint_from_bio(BIO *);
-void write_varint_to_bio(BIO *, long);
+int read_varint_from_stream(FILE *stream);
+void write_varint_to_stream(FILE *stream, int);
+int read_varint_from_bio(BIO *bio);
+void write_varint_to_bio(BIO *bio, int);
 
-long read_varint(struct connection *);
+int read_varint(struct connection *c);
 struct t_string read_string(struct connection *);
 char read_byte(struct connection *);
 short read_short(struct connection *);
@@ -134,7 +134,7 @@ float read_float(struct connection *);
 double read_double(struct connection *);
 void read_uuid(struct connection *, unsigned char *uuid);
 
-void write_varint(struct connection *, long);
+void write_varint(struct connection *c, int);
 void write_c_string(struct connection *, const char *);
 void write_data_len(struct connection *, const void *, size_t len);
 void write_string(struct connection *, struct t_string);
