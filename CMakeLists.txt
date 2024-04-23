@@ -3,12 +3,20 @@ project(minecraft C)
 
 set(CMAKE_C_STANDARD 23)
 
+if (NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Debug)
+endif ()
+
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 
-add_compile_options(-fsanitize=address -Wall -Wextra)
-add_link_options(-fsanitize=address)
+add_compile_options(-Wall -Wextra)
+
+set(CMAKE_C_FLAGS_DEBUG "-fsanitize=address -g -Og")
+set(CMAKE_LINK_FLAGS_DEBUG "-fsanitize=address")
+
+set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 add_executable(minecraft
 	main.c
