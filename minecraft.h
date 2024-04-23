@@ -34,13 +34,18 @@ struct packet {
 };
 
 struct chunk_section {
+	int filled_blocks;
+
 	int bits_per_block;
 
+	// if bits_per_block == 0, this is a single-block section
+	// and the block is stored in single_block
+	short single_block;
+
+	// otherwise, the block data is stored in palette and data
 	short *palette;
 	int palette_len;
 	int palette_size;
-
-	int filled_blocks;
 
 	long *data;
 	int data_len;

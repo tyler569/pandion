@@ -9,6 +9,7 @@ enum play_inbound_packet_id {
 	player_rotation = 0x13,
 	keepalive_client = 0x0f,
 	digging = 0x1a,
+	placement = 0x2e,
 };
 
 enum play_outbound_packet_id {
@@ -28,6 +29,7 @@ pn_error_t handle_position_and_rotation(struct connection *c);
 pn_error_t handle_rotation(struct connection *c);
 pn_error_t handle_keepalive(struct connection *c);
 pn_error_t handle_digging(struct connection *c);
+pn_error_t handle_placement(struct connection *c);
 
 pn_error_t send_join_game(struct connection *c);
 pn_error_t send_plugin_message_server(struct connection *c);
@@ -67,6 +69,9 @@ pn_error_t handle_play_state(struct connection *c) {
 		break;
 	case digging:
 		rc = handle_digging(c);
+		break;
+	case placement:
+		rc = handle_placement(c);
 		break;
 	default:
 		rc = pn_unhandled_packet;
@@ -318,6 +323,51 @@ pn_error_t handle_digging(struct connection *c) {
 	if (status == 0) {
 		set_world_block(&c->server->world, x, y, z, 0);
 	}
+
+	return pn_ok;
+}
+
+static pn_error_t offset_position(int *x, int *y, int *z, int face) {
+	switch (face) {
+	case 0:
+		(*y)--;
+		break;
+	case 1:
+		(*y)++;
+		break;
+	case 2:
+		(*z)--;
+		break;
+	case 3:
+		(*z)++;
+		break;
+	case 4:
+		(*x)--;
+		break;
+	case 5:
+		(*x)++;
+		break;
+	default:
+		return pn_invalid_packet;
+	}
+	return pn_ok;
+}
+
+pn_error_t handle_placement(struct connection *c) {
+	int hand = read_varint(c);
+	int x, y, z;
+	read_position(c, &x, &y, &z);
+	int face = read_varint(c);
+	float hit_x = read_float(c);
+	float hit_y = read_float(c);
+	float hit_z = read_float(c);
+
+	printf("  placement hand=%d x=%d y=%d z=%d face=%d hit=(%f, %f, %f)\n",
+		hand, x, y, z, face, hit_x, hit_y, hit_z);
+
+	offset_position(&x, &y, &z, face);
+
+	set_world_block(&c->server->world, x, y, z, 1);
 
 	return pn_ok;
 }

@@ -27,14 +27,11 @@ static long cs_block_mask(int bits_per_block) {
 }
 
 static int cs_get(struct chunk_section *cs, int index) {
-	if (cs->bits_per_block == 0 && cs->palette == nullptr) {
-		return 0;
-	}
-
 	if (cs->bits_per_block == 0) {
-		assert(cs->palette_len == 2);
-
-		return cs->palette[1];
+		// This only ever gets hit during relayout, at which point
+		// single_block will have been moved to palette[1]
+		// unless it was air, in which case it will be 0.
+		return cs->single_block == 0 ? 0 : 1;
 	}
 
 	int blocks_per_long = 64 / cs->bits_per_block;
@@ -103,10 +100,6 @@ static void cs_set(struct chunk_section *cs, int index, int id) {
 		cs->filled_blocks--;
 	}
 
-	if (cs->bits_per_block == 0) {
-		cs_relayout_block_data(cs);
-	}
-
 	cs_set_raw(cs, index, id);
 }
 
@@ -114,22 +107,24 @@ static int cs_expand_palette(struct chunk_section *cs, short block) {
 	if (cs->palette_len == 0) {
 		cs->palette = calloc(16, sizeof(short));
 		cs->palette_size = 16;
-		cs->palette_len = 2;
+		cs->palette_len = 1;
 
 		cs->palette[0] = 0;
-		cs->palette[1] = block;
+		if (cs->single_block)
+			cs->palette[cs->palette_len++] = cs->single_block;
 	} else if (cs->palette_len == cs->palette_size) {
 		cs->palette_size *= 2;
 		cs->palette = realloc(cs->palette, cs->palette_size * sizeof(short));
-
-		cs->palette[cs->palette_len++] = block;
 	}
+
+	if (block)
+		cs->palette[cs->palette_len++] = block;
 
 	if (cs->bits_per_block != cs_correct_bits_per_block(cs)) {
 		cs_relayout_block_data(cs);
 	}
 
-	return cs->palette_len - 1;
+	return block ? cs->palette_len - 1 : 0;
 }
 
 static int cs_palette_id(struct chunk_section *cs, short block) {
@@ -146,17 +141,17 @@ static void cs_set_block(
 	struct chunk_section *cs, int x, int y, int z, short block) {
 	int index = y * 16 * 16 + z * 16 + x;
 
-	int paletted_id = cs_palette_id(cs, block);
-
-	cs_set(cs, index, paletted_id);
+	cs_set(cs, index, cs_palette_id(cs, block));
 }
 
 static short cs_get_block(struct chunk_section *cs, int x, int y, int z) {
 	int index = y * 16 * 16 + z * 16 + x;
 
-	int paletted_id = cs_get(cs, index);
+	if (cs->bits_per_block == 0) {
+		return cs->single_block;
+	}
 
-	return cs->palette[paletted_id];
+	return cs->palette[cs_get(cs, index)];
 }
 
 static void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
@@ -165,16 +160,9 @@ static void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
 
 	write_varint_to_stream(stream, cs->bits_per_block);
 
-	// single-valued palette in the special all-air case
-	if (cs->bits_per_block == 0 && cs->palette == nullptr) {
-		write_varint_to_stream(stream, 0);
-	}
-
-	// single-valued palette in the general case
-	else if (cs->bits_per_block == 0) {
-		assert(cs->palette_len == 2);
-
-		write_varint_to_stream(stream, cs->palette[1]);
+	// single-valued palette
+	if (cs->bits_per_block == 0) {
+		write_varint_to_stream(stream, cs->single_block);
 	}
 
 	// multi-valued palette
@@ -204,17 +192,13 @@ static void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
 }
 
 static struct chunk_section uniblock_cs(short block_state) {
+	assert(block_state != 0 && "uniblock_cs(0) is not allowed - use 0 value");
+
 	struct chunk_section r = {
 		.bits_per_block = 0,
-		.palette = calloc(16, sizeof(short)),
-		.palette_len = 2,
-		.palette_size = 16,
-		.filled_blocks = block_state != 0 ? 4096 : 0,
-		.data = nullptr,
-		.data_len = 0,
+		.single_block = block_state,
+		.filled_blocks = 4096,
 	};
-
-	r.palette[1] = block_state;
 
 	return r;
 }
