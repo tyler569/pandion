@@ -81,8 +81,6 @@ void init_connection_aes(struct connection *c) {
 		encrypt, EVP_aes_128_cfb8(), c->shared_secret, c->shared_secret, 1);
 
 	c->outbound_stream = BIO_push(encrypt, c->outbound_stream);
-
-	c->encryption_enabled = true;
 }
 
 void close_connection_streams(struct connection *c) {

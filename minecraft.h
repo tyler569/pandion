@@ -33,18 +33,6 @@ struct packet {
 	FILE *stream;
 };
 
-struct server {
-	EVP_PKEY *server_key;
-	unsigned char *der_public_key;
-	size_t der_public_key_len;
-
-	struct nbt_tag *dimension;
-	struct nbt_tag *dimension_codec;
-};
-
-void init_server_crypto(struct server *s);
-void init_server_state(struct server *s);
-
 struct chunk_section {
 	int bits_per_block;
 
@@ -70,6 +58,10 @@ struct chunk {
 	size_t data_packet_cache_len;
 };
 
+struct world {
+	struct chunk chunk;
+};
+
 struct connection {
 	struct server *server;
 
@@ -86,13 +78,10 @@ struct connection {
 	time_t last_keepalive_sent;
 	time_t last_keepalive_received;
 
-	int last_teleport_id;
-
 	unsigned char verify_token[4];
 	unsigned char shared_secret[16];
 
 	int compression_threshold;
-	bool encryption_enabled;
 
 	char username[16];
 	unsigned char uuid[16];
@@ -103,14 +92,36 @@ struct connection {
 	double x, y, z;
 	float yaw, pitch;
 	bool on_ground;
+
+	int last_teleport_id;
 };
 
-void handle_client_connection(struct server *, int client_socket_fd);
+struct server {
+	EVP_PKEY *server_key;
+	unsigned char *der_public_key;
+	size_t der_public_key_len;
+
+	struct nbt_tag *dimension;
+	struct nbt_tag *dimension_codec;
+
+	struct world world;
+};
 
 struct t_string {
 	char *data;
 	int len;
 };
+
+void init_world(struct world *);
+struct chunk *get_world_chunk(struct world *, int x, int z);
+
+short get_world_block(struct world *w, int x, int y, int z);
+void set_world_block(struct world *w, int x, int y, int z, short block);
+
+void init_server_crypto(struct server *s);
+void init_server_state(struct server *s);
+
+void handle_client_connection(struct server *, int client_socket_fd);
 
 pn_error_t decrypt_data_rsa(struct connection *, unsigned char *out,
 	size_t out_len, struct t_string *in);
@@ -144,6 +155,7 @@ long read_long(struct connection *);
 float read_float(struct connection *);
 double read_double(struct connection *);
 void read_uuid(struct connection *, unsigned char *uuid);
+void read_position(struct connection *, int *x, int *y, int *z);
 
 void write_varint(struct connection *, int);
 void write_c_string(struct connection *, const char *);
@@ -157,6 +169,7 @@ void write_float(struct connection *, float);
 void write_double(struct connection *, double);
 void write_uuid(struct connection *, unsigned char *uuid);
 void write_nbt(struct connection *, struct nbt_tag *);
+void write_position(struct connection *, int x, int y, int z);
 
 #define write_fprintf(c, fmt, ...) \
 	fprintf(c->outbound_packet.stream, fmt, ##__VA_ARGS__)

@@ -8,6 +8,7 @@ enum play_inbound_packet_id {
 	player_position_and_rotation = 0x12,
 	player_rotation = 0x13,
 	keepalive_client = 0x0f,
+	digging = 0x1a,
 };
 
 enum play_outbound_packet_id {
@@ -26,6 +27,7 @@ pn_error_t handle_position(struct connection *c);
 pn_error_t handle_position_and_rotation(struct connection *c);
 pn_error_t handle_rotation(struct connection *c);
 pn_error_t handle_keepalive(struct connection *c);
+pn_error_t handle_digging(struct connection *c);
 
 pn_error_t send_join_game(struct connection *c);
 pn_error_t send_plugin_message_server(struct connection *c);
@@ -42,7 +44,10 @@ pn_error_t handle_play_state(struct connection *c) {
 
 	long packet_type = read_varint(c);
 
-	printf("play packet type=%ld\n", packet_type);
+	// don't print the movement packets
+	if (packet_type != 17 && packet_type != 18 && packet_type != 19) {
+		printf("play packet type=%ld\n", packet_type);
+	}
 
 	switch (packet_type) {
 	case client_settings:
@@ -59,6 +64,9 @@ pn_error_t handle_play_state(struct connection *c) {
 		break;
 	case keepalive_client:
 		rc = handle_keepalive(c);
+		break;
+	case digging:
+		rc = handle_digging(c);
 		break;
 	default:
 		rc = pn_unhandled_packet;
@@ -213,18 +221,13 @@ pn_error_t do_player_join_game(struct connection *c) {
 	if (rc != pn_ok)
 		return rc;
 
-	static struct chunk k;
-	static bool init = false;
-	if (!init) {
-		k = new_chunk(0, 0);
-	}
-
 	for (int x = -3; x <= 3; x++) {
 		for (int z = -3; z <= 3; z++) {
-			k.x = x;
-			k.z = z;
+			struct chunk *k = get_world_chunk(&c->server->world, x, z);
+			k->x = x;
+			k->z = z;
 
-			rc = send_chunk_data(c, &k);
+			rc = send_chunk_data(c, k);
 			if (rc != pn_ok)
 				return rc;
 		}
@@ -300,6 +303,21 @@ pn_error_t process_keepalive_status(struct connection *c) {
 
 	if (now - c->last_keepalive_received > 30)
 		return pn_timeout;
+
+	return pn_ok;
+}
+
+pn_error_t handle_digging(struct connection *c) {
+	int status = read_varint(c);
+	int x, y, z;
+	read_position(c, &x, &y, &z);
+	int face = read_varint(c);
+
+	printf("  dig status=%d x=%d y=%d z=%d face=%d\n", status, x, y, z, face);
+
+	if (status == 0) {
+		set_world_block(&c->server->world, x, y, z, 0);
+	}
 
 	return pn_ok;
 }

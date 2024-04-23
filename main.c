@@ -31,6 +31,7 @@ int main() {
 	struct server server = {};
 	init_server_crypto(&server);
 	init_server_state(&server);
+	init_world(&server.world);
 
 	while (true) {
 		int clientfd

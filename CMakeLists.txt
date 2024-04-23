@@ -7,7 +7,7 @@ find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 
-add_compile_options(-fsanitize=address)
+add_compile_options(-fsanitize=address -Wall -Wextra)
 add_link_options(-fsanitize=address)
 
 add_executable(minecraft

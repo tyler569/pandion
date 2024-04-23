@@ -6,7 +6,7 @@
 static char dump_byte_char(char c) { return isprint(c) ? c : '.'; }
 
 static void print_byte_char_line(const char *c, size_t remaining_len) {
-	for (int i = 0; i < remaining_len; i++) {
+	for (size_t i = 0; i < remaining_len; i++) {
 		printf("%c", dump_byte_char(c[i]));
 	}
 }

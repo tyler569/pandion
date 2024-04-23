@@ -32,9 +32,9 @@ static int cs_get(struct chunk_section *cs, int index) {
 	}
 
 	if (cs->bits_per_block == 0) {
-		assert(cs->palette_len == 1);
+		assert(cs->palette_len == 2);
 
-		return cs->palette[0];
+		return cs->palette[1];
 	}
 
 	int blocks_per_long = 64 / cs->bits_per_block;
@@ -63,18 +63,9 @@ static void cs_set_raw(struct chunk_section *cs, int index, int id) {
 	cs->data[long_index] |= (long)id << block_index * cs->bits_per_block;
 }
 
-static void cs_set(struct chunk_section *cs, int index, int id) {
-	int was = cs_get(cs, index);
-	if (id && was == 0) {
-		cs->filled_blocks++;
-	} else if (id == 0 && was) {
-		cs->filled_blocks--;
-	}
+static void cs_relayout_block_data(struct chunk_section *cs) {
+	printf("relayout\n");
 
-	cs_set_raw(cs, index, id);
-}
-
-void cs_relayout_block_data(struct chunk_section *cs) {
 	int new_bits_per_block = cs_correct_bits_per_block(cs);
 
 	int new_blocks_per_long = 64 / new_bits_per_block;
@@ -99,7 +90,27 @@ void cs_relayout_block_data(struct chunk_section *cs) {
 	*cs = new_cs;
 }
 
-int cs_expand_palette(struct chunk_section *cs, short block) {
+static void cs_set(struct chunk_section *cs, int index, int id) {
+	int was = cs_get(cs, index);
+
+	if (was == id) {
+		return;
+	}
+
+	if (id && was == 0) {
+		cs->filled_blocks++;
+	} else if (id == 0 && was) {
+		cs->filled_blocks--;
+	}
+
+	if (cs->bits_per_block == 0) {
+		cs_relayout_block_data(cs);
+	}
+
+	cs_set_raw(cs, index, id);
+}
+
+static int cs_expand_palette(struct chunk_section *cs, short block) {
 	if (cs->palette_len == 0) {
 		cs->palette = calloc(16, sizeof(short));
 		cs->palette_size = 16;
@@ -121,7 +132,7 @@ int cs_expand_palette(struct chunk_section *cs, short block) {
 	return cs->palette_len - 1;
 }
 
-int cs_palette_id(struct chunk_section *cs, short block) {
+static int cs_palette_id(struct chunk_section *cs, short block) {
 	for (int i = 0; i < cs->palette_len; i++) {
 		if (cs->palette[i] == block) {
 			return i;
@@ -131,7 +142,8 @@ int cs_palette_id(struct chunk_section *cs, short block) {
 	return cs_expand_palette(cs, block);
 }
 
-void cs_set_block(struct chunk_section *cs, int x, int y, int z, short block) {
+static void cs_set_block(
+	struct chunk_section *cs, int x, int y, int z, short block) {
 	int index = y * 16 * 16 + z * 16 + x;
 
 	int paletted_id = cs_palette_id(cs, block);
@@ -139,7 +151,7 @@ void cs_set_block(struct chunk_section *cs, int x, int y, int z, short block) {
 	cs_set(cs, index, paletted_id);
 }
 
-short cs_get_block(struct chunk_section *cs, int x, int y, int z) {
+static short cs_get_block(struct chunk_section *cs, int x, int y, int z) {
 	int index = y * 16 * 16 + z * 16 + x;
 
 	int paletted_id = cs_get(cs, index);
@@ -147,7 +159,7 @@ short cs_get_block(struct chunk_section *cs, int x, int y, int z) {
 	return cs->palette[paletted_id];
 }
 
-void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
+static void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
 	short block_count = htons(cs->filled_blocks);
 	fwrite(&block_count, 1, sizeof(block_count), stream);
 
@@ -160,8 +172,9 @@ void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
 
 	// single-valued palette in the general case
 	else if (cs->bits_per_block == 0) {
-		assert(cs->palette_len == 1);
-		write_varint_to_stream(stream, cs->palette[0]);
+		assert(cs->palette_len == 2);
+
+		write_varint_to_stream(stream, cs->palette[1]);
 	}
 
 	// multi-valued palette
@@ -190,36 +203,25 @@ void cs_serialize_to_stream(struct chunk_section *cs, FILE *stream) {
 	write_varint_to_stream(stream, 0); // biome data array length
 }
 
-struct chunk_section uniblock_cs(short block_state) {
+static struct chunk_section uniblock_cs(short block_state) {
 	struct chunk_section r = {
 		.bits_per_block = 0,
 		.palette = calloc(16, sizeof(short)),
-		.palette_len = 1,
+		.palette_len = 2,
 		.palette_size = 16,
 		.filled_blocks = block_state != 0 ? 4096 : 0,
 		.data = nullptr,
 		.data_len = 0,
 	};
 
-	r.palette[0] = block_state;
+	r.palette[1] = block_state;
 
 	return r;
 }
 
-struct chunk_section stone_cs() { return uniblock_cs(1); }
+static struct chunk_section stone_cs() { return uniblock_cs(1); }
 
-struct chunk new_chunk(int x, int z) {
-	struct chunk r = {
-		.x = x,
-		.z = z,
-		.motion_blocking = { 0 },
-		.sections = { stone_cs() },
-	};
-
-	return r;
-}
-
-struct chunk_section *chunk_get_section(struct chunk *c, int y) {
+static struct chunk_section *get_chunk_section(struct chunk *c, int y) {
 	int section_index = (y + 64) / 16;
 
 	assert(section_index >= 0 && section_index < 24);
@@ -227,7 +229,7 @@ struct chunk_section *chunk_get_section(struct chunk *c, int y) {
 	return &c->sections[section_index];
 }
 
-int chunk_cs_y_index(int y) {
+static int chunk_16_index(int y) {
 	int ny = y % 16;
 	if (ny < 0) {
 		ny += 16;
@@ -235,10 +237,10 @@ int chunk_cs_y_index(int y) {
 	return ny;
 }
 
-void chunk_set(struct chunk *c, int x, int y, int z, short block) {
-	struct chunk_section *cs = chunk_get_section(c, y);
+static void set_chunk_block(struct chunk *c, int x, int y, int z, short block) {
+	struct chunk_section *cs = get_chunk_section(c, y);
 
-	cs_set_block(cs, x, chunk_cs_y_index(y), z, block);
+	cs_set_block(cs, x, chunk_16_index(y), z, block);
 
 	free(c->data_packet_cache);
 	c->data_packet_cache = nullptr;
@@ -247,10 +249,10 @@ void chunk_set(struct chunk *c, int x, int y, int z, short block) {
 	// TODO: update motion_blocking if we're the highest block in the column
 }
 
-short chunk_get(struct chunk *c, int x, int y, int z) {
-	struct chunk_section *cs = chunk_get_section(c, y);
+static short get_chunk_block(struct chunk *c, int x, int y, int z) {
+	struct chunk_section *cs = get_chunk_section(c, y);
 
-	return cs_get_block(cs, x, chunk_cs_y_index(y), z);
+	return cs_get_block(cs, x, chunk_16_index(y), z);
 }
 
 pn_error_t write_chunk_data_to_packet(struct connection *c, struct chunk *k) {
@@ -305,4 +307,27 @@ pn_error_t write_chunk_data_to_packet(struct connection *c, struct chunk *k) {
 	write_varint(c, 0); // block light array count
 
 	return pn_ok;
+}
+
+void init_world(struct world *w) {
+	w->chunk = (struct chunk) {
+		.sections = {
+			stone_cs(),
+			stone_cs(),
+			stone_cs(),
+			stone_cs(),
+		},
+	};
+}
+
+struct chunk *get_world_chunk(struct world *w, int, int) { return &w->chunk; }
+
+short get_world_block(struct world *w, int x, int y, int z) {
+	struct chunk *c = get_world_chunk(w, x, z);
+	return get_chunk_block(c, chunk_16_index(x), y, chunk_16_index(z));
+}
+
+void set_world_block(struct world *w, int x, int y, int z, short block) {
+	struct chunk *c = get_world_chunk(w, x, z);
+	set_chunk_block(c, chunk_16_index(x), y, chunk_16_index(z), block);
 }

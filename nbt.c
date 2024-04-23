@@ -279,7 +279,7 @@ void nbt_print_rec(struct nbt_tag *tag, int depth) {
 		break;
 	case NBT_BYTE_ARRAY:
 		printf("[");
-		for (uint32_t i = 0; i < tag->byte_array.len; i++) {
+		for (int i = 0; i < tag->byte_array.len; i++) {
 			printf("%db ", tag->byte_array.data[i]);
 		}
 		printf("]\n");
@@ -305,14 +305,14 @@ void nbt_print_rec(struct nbt_tag *tag, int depth) {
 		break;
 	case NBT_INT_ARRAY:
 		printf("[");
-		for (uint32_t i = 0; i < tag->int_array.len; i++) {
+		for (int i = 0; i < tag->int_array.len; i++) {
 			printf("%d ", tag->int_array.data[i]);
 		}
 		printf("]\n");
 		break;
 	case NBT_LONG_ARRAY:
 		printf("[");
-		for (uint32_t i = 0; i < tag->long_array.len; i++) {
+		for (int i = 0; i < tag->long_array.len; i++) {
 			printf("%ldl ", tag->long_array.data[i]);
 		}
 		printf("]\n");

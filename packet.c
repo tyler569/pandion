@@ -1,5 +1,6 @@
 #include "minecraft.h"
 #include "nbt.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,14 @@ float read_float(struct connection *c) {
 double read_double(struct connection *c) {
 	long i = read_long(c);
 	return *(double *)&i;
+}
+
+void read_position(struct connection *c, int *x, int *y, int *z) {
+	long val = read_long(c);
+
+	*x = (int)(val >> 38);
+	*y = (int)(val << 52 >> 52);
+	*z = (int)(val << 26 >> 38);
 }
 
 void write_c_string(struct connection *c, const char *string) {
@@ -111,4 +120,14 @@ void write_uuid(struct connection *c, unsigned char *uuid) {
 
 void write_nbt(struct connection *c, struct nbt_tag *tag) {
 	nbt_write_to_stream(tag, c->outbound_packet.stream);
+}
+
+void write_position(struct connection *c, int x, int y, int z) {
+	assert(x >= -33554432 && x < 33554432);
+	assert(y >= -2048 && y < 2048);
+	assert(z >= -33554432 && z < 33554432);
+
+	write_long(c,
+		(((long)x & 0x3FFFFFF) << 38) | (((long)z & 0x3FFFFFF) << 12)
+			| ((long)y & 0xFFF));
 }
